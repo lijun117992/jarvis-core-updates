@@ -2,10 +2,10 @@
   "project": "Jarvis-Core",
   "schema": 1,
   "channel": "preview",
-  "version": "4.0.0-preview7",
+  "version": "4.0.0-preview8",
   "minLauncher": 2,
-  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview7/Jarvis-Core-v4.0.0-preview7.zip",
-  "bytes": 2088020,
-  "sha256": "5eb2523eb962e4d5cffc72446c6be2b52aacb1b56a864cdb9f6557561e010593",
-  "notes": "新增 Fish 音色批量粘贴导入、预览去重、多选删除、批量命名和撤销。名单仅保存在手机。原语音兼容路径仍需真机验收。"
+  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview8/Jarvis-Core-v4.0.0-preview8.zip",
+  "bytes": 2088648,
+  "sha256": "17a34f9e022b5956942be08406880676e14efe3eb0ed9ea8e29e58209a4a05cd",
+  "notes": "淡蓝极简主面板；系统/Fish 按选择展开，系统引擎跟随手机；连接、批量音色、听写诊断按需展开；通知默认分析，权限合并入口。"
 }
