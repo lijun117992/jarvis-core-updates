@@ -57,7 +57,7 @@ ui.layout(
                         <button id="saveFishVoice" text="保存音色" textSize="12sp"/>
                         <button id="manageFishVoices" text="批量管理" textSize="12sp"/>
             <vertical id="fishVoiceManager" visibility="gone" padding="10" bg="#EFF5FC">
-                <text text="粘贴名单：每行 ID 或 名称,ID，也支持 JSON 数组。同批重复保留首条。" textColor="#657B91" textSize="12sp"/>
+                <text text="直接粘贴 32 位 ID，可连续粘贴；也可粘贴“名字 + ID”，自动分组，换行或空格均可。" textColor="#657B91" textSize="12sp"/>
                 <input id="voiceBatchInput" h="110" inputType="textMultiLine" gravity="top" hint="粘贴音色名单…" textColor="#18324F" textColorHint="#71879D" textSize="14sp"/>
                 <checkbox id="voiceImportOverwrite" text="同 ID 时更新已有名称（默认保留原名称）" textColor="#18324F"/>
                 <horizontal><button id="previewVoiceImport" text="预览导入" layout_weight="1" textSize="12sp"/><button id="applyVoiceImport" text="导入有效条目" enabled="false" layout_weight="1" textSize="12sp"/></horizontal>
@@ -108,7 +108,7 @@ ui.layout(
                 <text text="若调音量会退出，请在 AutoJs6 关闭音量加键停止脚本。记忆保存在 /sdcard/Jarvis/Memory/。" textColor="#657B91" textSize="12sp" marginTop="10"/>
                 <button id="exitCompanion" text="退出小狐妖" textSize="12sp" marginTop="12"/>
             </vertical>
-            <text text="BLUE FOX · preview8" textColor="#7B93AC" textSize="10sp" gravity="center" marginTop="24"/>
+            <text text="BLUE FOX · preview9" textColor="#7B93AC" textSize="10sp" gravity="center" marginTop="24"/>
         </vertical>
     </scroll>
 );

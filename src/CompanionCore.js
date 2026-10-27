@@ -113,6 +113,26 @@
             try { data = JSON.parse(text); } catch (e) { throw Error("JSON 格式不正确，未导入"); }
             if (!Array.isArray(data)) throw Error("JSON 请使用数组：包含音色 ID 字符串或 name/id 对象");
             rows = data.map(function(v, i) { return { number: i + 1, value: v }; });
+        } else if (/[A-Za-z0-9]{32,}|[a-fA-F0-9]{24,}/.test(text)) {
+            // Scan whole IDs, not arbitrary 32-character substrings of malformed IDs.
+            // Names may precede an ID on the same line or on a separate line.
+            var source = text.split(/\r?\n/).map(function(line) { return /^\s*#/.test(line) ? "" : line; }).join("\n");
+            var tokens = /[A-Za-z0-9_-]{24,}/g, match, cursor = 0;
+            function groupName(value) { return value.replace(/^[\s,，;；:：|+]+|[\s,，;；:：|+]+$/g, ""); }
+            function rowNumber(offset) { return source.slice(0, offset).split("\n").length; }
+            while ((match = tokens.exec(source))) {
+                var label = groupName(source.slice(cursor, match.index)), token = match[0];
+                var number = rowNumber(match.index);
+                if (!/^[A-Za-z0-9]+$/.test(token) || token.length % 32 !== 0 || /sk-|https?:\/\//i.test(label)) {
+                    rows.push({ number: number, value: null });
+                } else {
+                    for (var part = 0; part < token.length; part += 32) {
+                        rows.push({ number: number, value: { name: part === 0 ? label : "", id: token.slice(part, part + 32) } });
+                    }
+                }
+                cursor = tokens.lastIndex;
+            }
+            if (groupName(source.slice(cursor))) rows.push({ number: rowNumber(cursor), value: null });
         } else {
             text.split(/\r?\n/).forEach(function(line, index) {
                 line = line.trim(); if (!line || line.charAt(0) === "#") return;
@@ -126,7 +146,7 @@
                 var v = row.value, id, name;
                 if (typeof v === "string") { id = v; name = ""; }
                 else if (v && typeof v === "object" && typeof v.id === "string" && (v.name === undefined || typeof v.name === "string")) { id = v.id; name = v.name || ""; }
-                else throw Error("请使用 ID 或 名称,ID");
+                else throw Error("请使用完整 32 位 ID，或 名称 + 32 位 ID；名字需有对应 ID");
                 id = id.trim(); name = name.trim();
                 // Reuse single-item validation; never echo accidental keys in errors.
                 upsertFishVoice([], name, id);
