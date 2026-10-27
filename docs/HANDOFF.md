@@ -6,7 +6,7 @@
 
 ## 当前源码与原始发布基线
 
-源码已升 preview9，新增 32 位 ID 连续拆分与“名字 + ID”跨行分组，保留原导入格式：淡蓝极简主面板，系统/Fish 互斥展开，连接/音色管理/诊断折叠；通知按用户明确要求默认分析，权限合并入口，仍需逐项系统授权。系统音色改在手机文字转语音设置选择，返回自动重连；应用保留语速/音高调节。原批量音色功能见 [音色管理](VOICE_PRESETS.md)。合计 70 项桌面检查，原生 UI 与设置往返仍需验收。手机实际更新版本以根 update.json 和对应 Release 为准。下列 preview6 大小/哈希是原始历史基线，不能当作当前哈希。
+源码已升 preview10：输入框/气泡点击外部收起，保留草稿和全文，听写取消后忽略迟到回调。日常错误 5 只显示简短提示，前台测试保留详细诊断；未修复/未确定识别根因。保留 32 位音色 ID 自动分组、原导入格式与以下布局：淡蓝极简主面板，系统/Fish 互斥展开，连接/音色管理/诊断折叠；通知按用户明确要求默认分析，权限合并入口，仍需逐项系统授权。系统音色改在手机文字转语音设置选择，返回自动重连；应用保留语速/音高调节。原批量音色功能见 [音色管理](VOICE_PRESETS.md)。合计 78 项桌面检查，原生 UI 与设置往返仍需验收。手机实际更新版本以根 update.json 和对应 Release 为准。下列 preview6 大小/哈希是原始历史基线，不能当作当前哈希。
 
 - [仓库](https://github.com/lijun117992/jarvis-core-updates)：公开源码与更新通道，用户已同意公开通用程序和蓝狐素材。
 - [手机版本 4.0.0-preview6](https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview6)，启动器 2.0；固定指针为根目录 update.json。
@@ -80,3 +80,9 @@ AutoJs6 音量加停止脚本是宿主设置，用户需自行关闭，脚本不
 ## 建议技能
 
 故障用 systematic-debugging，实现后 verification-loop，文档交接用 neat-freak/handoff，蓝狐位图修改用 imagegen 并保持身份。本项目不是 ChatGPT Pets。未经明确请求不写长期记忆，不自动增设 CI/CD。
+
+## preview10 外部点击收起实现与验收
+
+- 仅给卡片原生根视图添加 NOT_TOUCH_MODAL / WATCH_OUTSIDE_TOUCH，接收 ACTION_OUTSIDE；不增加全屏透明遮罩，不申请全局触摸监听。参考 [AutoJs6 RawWindow 源码](https://github.com/SuperMonster003/AutoJs6/blob/master/app/src/main/java/org/autojs/autojs/core/floaty/RawWindow.kt) 与 [Android MotionEvent](https://developer.android.com/reference/android/view/MotionEvent#ACTION_OUTSIDE)。
+- 输入框隐藏保存草稿并收键盘，回复隐藏保留全文和朗读；长按小人找回回复、双击恢复草稿。监听失败保留手动“收起”，显示状态说明。
+- 新增 8 项模拟检查，共 78 项通过；真机仍需确认：框外点击、下层应用收到点击、键盘按键不误收起、拖动/按钮不受影响、隐藏后迟到识别不重弹。

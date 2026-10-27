@@ -108,7 +108,7 @@ ui.layout(
                 <text text="若调音量会退出，请在 AutoJs6 关闭音量加键停止脚本。记忆保存在 /sdcard/Jarvis/Memory/。" textColor="#657B91" textSize="12sp" marginTop="10"/>
                 <button id="exitCompanion" text="退出小狐妖" textSize="12sp" marginTop="12"/>
             </vertical>
-            <text text="BLUE FOX · preview9" textColor="#7B93AC" textSize="10sp" gravity="center" marginTop="24"/>
+            <text text="BLUE FOX · preview10" textColor="#7B93AC" textSize="10sp" gravity="center" marginTop="24"/>
         </vertical>
     </scroll>
 );
@@ -334,6 +334,29 @@ function placeCard(win, height) {
     bubbleHeight = height; win.setSize(width, height); positionBubble();
 }
 function closePanel() { bubbleWanted = false; if (panel) { panel.close(); panel = null; } scheduleDock(); }
+function dismissOutsideCard(win, kind) {
+    if (kind === "editor" && editor === win) closeEditor();
+    else if (kind === "panel" && panel === win) {
+        // Cancel pending recognition so a late callback cannot reopen a hidden card.
+        if (listening) stopListening();
+        closePanel();
+    }
+}
+function watchOutsideCard(win, kind) {
+    try {
+        // RawWindow's attached root owns WindowManager.LayoutParams. Do not use
+        // a full-screen touch catcher: outside taps must still reach other apps.
+        let root = win.root.getRootView(), params = root.getLayoutParams();
+        let flags = android.view.WindowManager.LayoutParams;
+        params.flags |= flags.FLAG_NOT_TOUCH_MODAL | flags.FLAG_WATCH_OUTSIDE_TOUCH;
+        context.getSystemService(android.content.Context.WINDOW_SERVICE).updateViewLayout(root, params);
+        root.setOnTouchListener(function(view, event) {
+            if (event.getActionMasked() !== android.view.MotionEvent.ACTION_OUTSIDE) return false;
+            main(function() { dismissOutsideCard(win, kind); });
+            return false;
+        });
+    } catch (e) { status("当前宿主未能启用点击外部收起，仍可点“收起”：" + safeError(e)); }
+}
 function showAnswer(title, text, markUnread, notice, animate) {
     if (exiting) return;
     main(function() {
@@ -367,6 +390,7 @@ function showAnswer(title, text, markUnread, notice, animate) {
         );
         rounded(panel.bubbleSurface, "#FFEDF4FF", 20, "#C1D3EC"); panel.disableFocus(); bubbleWanted = true;
         panel.body.setTextColor(colors.parseColor("#172C48")); panel.title.setTextColor(colors.parseColor("#355F98"));
+        watchOutsideCard(panel, "panel");
         const noticeExtra = notice ? dp(40) : 0;
         panel.title.setText(lastTitle); panel.body.setText(lastAnswer); placeCard(panel, dp(230) + noticeExtra);
         if (notice) {
@@ -433,6 +457,7 @@ function openEditor(text) {
         );
         rounded(editor.root, "#FFEDF4FF", 20, "#C1D3EC");
         editor.requestFocus();
+        watchOutsideCard(editor, "editor");
         let width = Math.min(dp(284), screenW - dp(24)); editor.setSize(width, dp(204));
         let location = Companion.bubble(orb.getX(), orb.getY(), orbSize, screenW, screenH, width, dp(204));
         editor.setPosition(location.x, Math.min(location.y, Math.max(dp(40), Math.floor(screenH * 0.45) - dp(204))));
@@ -473,7 +498,7 @@ function startListening(testOnly) {
     if (busy) { showAnswer("正在处理", "请等待上一条回复。", false); return; }
     closeEditor(); closePanel(); stopAudio();
     if (android.os.Build.VERSION.SDK_INT >= 23 && context.checkSelfPermission("android.permission.RECORD_AUDIO") !== 0) {
-        showAnswer("需要麦克风权限", "请回 Jarvis 面板点“麦克风权限”，授权后再试。", false); return;
+        showAnswer("需要麦克风权限", "请回 Jarvis 面板点“一键设置权限”，授权后再试。", false); return;
     }
     if (!android.speech.SpeechRecognizer.isRecognitionAvailable(context) && !onDeviceRecognitionAvailable()) {
         showAnswer("手机未提供语音识别服务", "请在系统设置中安装或启用支持中文的语音识别服务。输入法麦克风不等于应用可调用的识别服务。双击悬浮球仍可输入。", false); return;
@@ -488,8 +513,13 @@ function startListening(testOnly) {
             onPartialResults: function() {}, onEvent: function() {},
             onError: function(code) {
                 if (id !== recognitionId) return;
-                let messages = { 1: "识别服务网络超时", 2: "识别服务网络不可用", 3: "麦克风无法使用", 4: "识别服务异常", 5: "识别服务拒绝请求，可能限制后台收音", 6: "没有听到声音", 7: "没有识别到内容", 8: "识别服务忙，请稍后重试", 9: "麦克风权限不足", 10: "识别请求过于频繁", 12: "识别服务不支持中文", 13: "尚未下载中文识别模型" };
-                main(function() { if (id !== recognitionId) return; stopListening(); showAnswer("听写未完成", recognitionFailure(code), false); });
+                main(function() {
+                    if (id !== recognitionId) return;
+                    stopListening();
+                    let detail = recognitionFailure(code);
+                    status(testOnly === true ? detail : "听写失败（" + code + "）。可在更多设置测试兼容语音页面。");
+                    showAnswer("听写未完成", testOnly === true || Number(code) !== 5 ? detail : "系统听写暂不可用。可双击输入，或到更多设置测试兼容语音页面。", false);
+                });
             },
             onResults: function(bundle) {
                 if (id !== recognitionId) return;
@@ -871,7 +901,7 @@ function beginCompanion() {
     });
 }
 function recognitionFailure(code) {
-    let service = android.provider.Settings.Secure.getString(context.getContentResolver(), "voice_recognition_service");
+    let service = String(android.provider.Settings.Secure.getString(context.getContentResolver(), "voice_recognition_service") || "").trim();
     let text = "错误码 " + code + "；识别服务：" + (service || "系统默认，未公开组件名") + "。\n";
     if (Number(code) === 5) text += "ERROR_CLIENT：客户端请求失败，不能仅据此断定缺权限或后台限制。请先在面板点“前台测试听写”；前台也失败时检查系统语音输入服务。系统朗读与输入法麦克风是不同功能。";
     else text += "请检查麦克风权限、系统语音输入服务及网络；可双击小狐妖输入文字。";
