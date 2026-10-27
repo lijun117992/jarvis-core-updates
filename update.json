@@ -2,10 +2,10 @@
   "project": "Jarvis-Core",
   "schema": 1,
   "channel": "preview",
-  "version": "4.0.0-preview12",
+  "version": "4.0.0-preview13",
   "minLauncher": 2,
-  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview12/Jarvis-Core-v4.0.0-preview12.zip",
-  "bytes": 2113560,
-  "sha256": "a9d623e95be7822bb103411ee6983dd4cd9da2de10b917c81a9bc9787e06cbab",
-  "notes": "新增 MiMo 中转站语音识别、当前模型截图理解、手机文件与界面执行、当天持久上下文和每日记忆整理；保留 User_Persona.md 与人际关系表.md 手工内容。173 项桌面检查通过，手机收音/截屏/操作仍待实机验证。"
+  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview13/Jarvis-Core-v4.0.0-preview13.zip",
+  "bytes": 2120769,
+  "sha256": "a79883d657915a1c30d061f7fdaabf7862bdd31b1f315f059f879f45ee650166",
+  "notes": "修正单击录音状态和窗外误取消；隐藏回复可找回，新增按日期切换历史；精简气泡，快速读屏与按需截图分开，同次共享复用授权。新增多 API 渠道导入/管理、模型候选切换和独立对话/听写测试。兼容 ASR Base64 封装并显示脱敏服务端原因，拒绝空回答占位。199 项桌面检查通过，安卓与真实网关仍待验证。"
 }
