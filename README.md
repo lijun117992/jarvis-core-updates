@@ -1,2 +1,11 @@
-# jarvis-core-updates
-AutoJs6 Jarvis Core preview update channel: code, blue fox animation and token-free in-app updates
+# Jarvis Core 更新通道
+
+AutoJs6 蓝狐小伙伴的程序与动画更新包。此仓库计划为公开预览通道。
+
+手机通过固定启动器检查 `update.json`，下载指定 Release 附件，检查大小、SHA-256 和包内文件清单后安装；保留上一版本供手动回退。
+
+更新过程不上传手机配置。API Key、个人记忆、候选音色与所选 ID 保留在原 AutoJs6 本地存储，不属于发布文件。
+
+预览版尚需真机验证。系统直接语音识别依赖手机服务；兼容语音页面只在系统提供入口时可用，不保证能绕过厂商限制。
+
+程序包中的代码与原创蓝狐动画可通过公开附件下载。未声明开源许可；公开可下载不等于授予任意使用权。
