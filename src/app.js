@@ -1589,7 +1589,7 @@ function enqueueNotification(n) {
     drainNotificationQueue();
 }
 function drainNotificationQueue() {
-    if (!C.notifications || exiting || noticeBusy || busy || listening || !C.key ||
+    if (!C.notifications || exiting || noticeBusy || busy || listening || !!speechSession || !C.key ||
         Date.now() < noticeRetryAfter || !noticePending.length) return;
     let item = noticePending[0];
     noticeBusy = true;
@@ -1614,7 +1614,7 @@ function drainNotificationQueue() {
                 text: item.text, package: item.package, at: item.at };
             // Do not interrupt a concurrent voice command or a task. Retain the
             // notification in recent history for the notifications.recent tool.
-            if (!busy && !listening) showAnswer(item.sender, item.text + "\n\n" +
+            if (!busy && !listening && !speechSession) showAnswer(item.sender, item.text + "\n\n" +
                 replies.map(function (x, i) { return (i + 1) + ". " + x; }).join("\n\n") +
                 "\n\n草稿请检查后自行发送。", true, notice ? lastIncomingNotice : null, true);
         } catch (e) {
