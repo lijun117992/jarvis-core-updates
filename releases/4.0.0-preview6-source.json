@@ -1,0 +1,20 @@
+{
+  "project": "Jarvis-Core",
+  "schema": 1,
+  "version": "4.0.0-preview6",
+  "entry": "app.js",
+  "files": {
+    "app.js": {
+      "bytes": 71326,
+      "sha256": "8bcc5be9daf05cdf7bd02ec59eec8b1e5ed4268c7f0ae617a22469ccd5f58bee"
+    },
+    "CompanionCore.js": {
+      "bytes": 7375,
+      "sha256": "f10b56d29c2c77aaa9721f899cb53a333aff7c407777ded49c1ce5daaf7cbfd9"
+    },
+    "Assets/blue-fox/atlas.png": {
+      "bytes": 2154450,
+      "sha256": "a6b15ce93ceca2f5f513e3be87119fbce433658da4fe244002286162674ddc35"
+    }
+  }
+}

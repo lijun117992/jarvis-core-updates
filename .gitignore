@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.work/
+.env
+.env.*
+*.log
+__pycache__/
+state.json
+jarvis_config_v2/
+Memory/
