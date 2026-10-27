@@ -4,7 +4,7 @@ function load(names,env){const b=vm.createContext(env);vm.runInContext(names.map
 let count=0;function test(name,f){f();count++;console.log('PASS '+name);}
 test('outside watcher preserves flags, keeps touch non-modal and leaves inside events alone',()=>{
  let listener,updated,queued=[],dismissed=[];const params={flags:8};const root={getLayoutParams:()=>params,setOnTouchListener:f=>listener=f};const win={root:{getRootView:()=>root}};
- const b=load(['watchOutsideCard'],{android:{view:{WindowManager:{LayoutParams:{FLAG_NOT_TOUCH_MODAL:32,FLAG_WATCH_OUTSIDE_TOUCH:262144}},MotionEvent:{ACTION_OUTSIDE:4}},content:{Context:{WINDOW_SERVICE:'window'}}},context:{getSystemService:()=>({updateViewLayout:(v,p)=>updated=[v,p]})},main:f=>queued.push(f),dismissOutsideCard:(w,k)=>dismissed.push([w,k]),status:()=>{throw Error('unexpected fallback')},safeError:String});
+ const b=load(['watchOutsideCard'],{outsideHitsOrb:()=>false,dragActive:false,lastOrbTouchAt:0,setTimeout:f=>f(),android:{view:{WindowManager:{LayoutParams:{FLAG_NOT_TOUCH_MODAL:32,FLAG_WATCH_OUTSIDE_TOUCH:262144}},MotionEvent:{ACTION_OUTSIDE:4}},content:{Context:{WINDOW_SERVICE:'window'}}},context:{getSystemService:()=>({updateViewLayout:(v,p)=>updated=[v,p]})},main:f=>queued.push(f),dismissOutsideCard:(w,k)=>dismissed.push([w,k]),status:()=>{throw Error('unexpected fallback')},safeError:String});
  b.watchOutsideCard(win,'editor');assert.equal(params.flags,8|32|262144);assert.equal(updated[0],root);
  for(const action of [0,1,2])assert.equal(listener(root,{getActionMasked:()=>action}),false);
  assert.equal(queued.length,0);assert.equal(listener(root,{getActionMasked:()=>4}),false);assert.equal(dismissed.length,0);queued[0]();assert.deepEqual(dismissed,[[win,'editor']]);

@@ -407,19 +407,22 @@
         number(rate, 4); number(rate * 2, 4); number(2, 2); number(16, 2); ascii("data"); number(length, 4);
         return out;
     }
-    function relayAsrPayload(base64, model) {
+    function relayAsrPayload(base64, model, wire) {
         if (!base64 || base64.length > 10485760 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) throw Error("录音内容为空、过大或编码无效");
         model = String(model || "mimo-v2.5-asr").trim();
         if (!model || model.length > 120 || /[\r\n]/.test(model)) throw Error("语音识别模型名称无效");
-        return { model: model, stream: false, asr_options: { language: "zh" }, messages: [{ role: "user", content: [{ type: "input_audio", input_audio: { data: "data:audio/wav;base64," + base64, format: "wav" } }] }] };
+        var payload = { model: model, stream: false, messages: [{ role: "user", content: [{ type: "input_audio", input_audio: { data: wire === "base64" ? base64 : "data:audio/wav;base64," + base64, format: "wav" } }] }] };
+        if (wire !== "base64") payload.asr_options = { language: "zh" };
+        return payload;
     }
-    function makeVoiceActivity() {
+    function makeVoiceActivity(options) {
+        var pauseMs = options && options.pauseMs ? Math.max(600, Math.min(2000, options.pauseMs)) : 1300;
         var loudMs = 0, lastVoice = 0, nonzero = 0;
         return { update: function(level, nonzeroSamples, frameMs, elapsed) {
             nonzero += Math.max(0, nonzeroSamples);
             if (level >= 180) { loudMs += frameMs; lastVoice = elapsed; }
             if (elapsed >= 1800 && nonzero === 0) return { stop: true, valid: false, reason: "麦克风返回全零音频，请到面板前台测试接口听写；系统可能限制后台收音" };
-            if (loudMs >= 200 && elapsed - lastVoice >= 1300) return { stop: true, valid: true };
+            if (loudMs >= 200 && elapsed - lastVoice >= pauseMs) return { stop: true, valid: true };
             if (elapsed >= 7000 && loudMs < 200) return { stop: true, valid: false, reason: "没有听到清晰说话声，本次录音未上传" };
             if (elapsed >= 25000) return { stop: true, valid: loudMs >= 200, reason: "已达到本次录音时限" };
             return { stop: false, valid: loudMs >= 200 };
@@ -442,5 +445,33 @@
         return begin < 0 ? original.replace(/\s*$/, "") + "\n\n" + section + "\n" : original.slice(0, begin) + section + original.slice(finish + end.length);
     }
 
-    return { relationshipMarkdown: relationshipMarkdown, wavHeader: wavHeader, relayAsrPayload: relayAsrPayload, makeVoiceActivity: makeVoiceActivity, plainReply: plainReply, localDayKey: localDayKey, dayContext: dayContext, personaWithPreferences: personaWithPreferences, mergeDailyContacts: mergeDailyContacts, makeFileAgent: makeFileAgent, mergeCollaborationMemory: mergeCollaborationMemory, states: names, fps: fps, frame: frame, mirror: mirror, chooseState: chooseState, bubble: bubble, splitSentences: splitSentences, speechBlocks: speechBlocks, progressCount: progressCount, prefix: prefix, fishText: fishText, destination: destination, speed: speed, upsertFishVoice: upsertFishVoice, cloneFishVoices: cloneFishVoices, planFishImport: planFishImport, removeFishVoices: removeFishVoices, renameFishVoices: renameFishVoices };
+    function planChannelImport(raw) {
+        var entries = [], invalid = 0, source = String(raw || "").trim();
+        if (!source || source.length > 100000) return { channels: [], invalid: source ? 1 : 0 };
+        try { var parsed = JSON.parse(source); entries = Array.isArray(parsed) ? parsed : parsed && Array.isArray(parsed.channels) ? parsed.channels : [parsed]; }
+        catch (e) {
+            source.split(/\n\s*\n/).forEach(function(block) {
+                var lines = block.split(/\r?\n/).map(function(v) { return v.trim(); }).filter(function(v) { return !!v; });
+                var at = -1; for (var i = 0; i < lines.length; i++) if (/^https:\/\//i.test(lines[i])) { at = i; break; }
+                if (at < 0 || !lines[at + 1]) { invalid++; return; }
+                entries.push({ name: at > 0 ? lines[at - 1] : "", url: lines[at], key: lines[at + 1], model: lines[at + 2] || "" });
+            });
+        }
+        var channels = [];
+        entries.slice(0, 100).forEach(function(entry) {
+            if (!entry || typeof entry !== "object") { invalid++; return; }
+            var url = String(entry.url || entry.base_url || entry.baseUrl || "").trim().replace(/\/+$/, ""), key = String(entry.key || entry.api_key || entry.apiKey || "").trim();
+            if (!/^https:\/\/[^\s/?#@]+(?:\/[^\s?#]*)?$/.test(url) || !key || /\s/.test(key) || key.length > 1000 || /^(?:<.*>|你的.*|API.?Key|Bearer)$/i.test(key)) { invalid++; return; }
+            if (!/\/chat\/completions$/.test(url)) url += /\/v\d+$/.test(url) ? "/chat/completions" : "/v1/chat/completions";
+            var model = typeof entry.model === "string" ? entry.model.trim().slice(0, 160) : "";
+            var models = Array.isArray(entry.models) ? entry.models.filter(function(v) { return typeof v === "string" && !!v.trim() && v.length <= 160 && !/[\r\n]/.test(v); }).slice(0, 500) : [];
+            if (!model && models.length) model = models[0];
+            if (model && models.indexOf(model) < 0) models.unshift(model);
+            if (channels.some(function(p) { return p.url === url && p.key === key; })) return;
+            channels.push({ name: String(entry.name || "渠道 " + (channels.length + 1)).slice(0, 80), url: url, key: key, model: model, models: models, asrModel: String(entry.asrModel || entry.asr_model || "mimo-v2.5-asr").slice(0, 160), visionModel: String(entry.visionModel || entry.vision_model || "").slice(0, 160), asrWire: entry.asrWire === "data-url" ? "data-url" : "base64" });
+        });
+        return { channels: channels, invalid: invalid + Math.max(0, entries.length - 100) };
+    }
+
+    return { planChannelImport: planChannelImport, relationshipMarkdown: relationshipMarkdown, wavHeader: wavHeader, relayAsrPayload: relayAsrPayload, makeVoiceActivity: makeVoiceActivity, plainReply: plainReply, localDayKey: localDayKey, dayContext: dayContext, personaWithPreferences: personaWithPreferences, mergeDailyContacts: mergeDailyContacts, makeFileAgent: makeFileAgent, mergeCollaborationMemory: mergeCollaborationMemory, states: names, fps: fps, frame: frame, mirror: mirror, chooseState: chooseState, bubble: bubble, splitSentences: splitSentences, speechBlocks: speechBlocks, progressCount: progressCount, prefix: prefix, fishText: fishText, destination: destination, speed: speed, upsertFishVoice: upsertFishVoice, cloneFishVoices: cloneFishVoices, planFishImport: planFishImport, removeFishVoices: removeFishVoices, renameFishVoices: renameFishVoices };
 });

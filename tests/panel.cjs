@@ -29,8 +29,8 @@ test('two provider choices are exclusive, preserve settings on reveal and reject
  b.chooseVoice('auto');assert.equal(sync,2);assert.equal(b.C.provider,'system');
 });
 test('saving collapsed settings keeps provider, follows system voice and enables notifications',()=>{
- const data={},ui={asrModel:{text:()=>"mimo-v2.5-asr"},dailyMemory:{isChecked:()=>true},visionModel:{text:()=>''},agentEnabled:{isChecked:()=>true},connectionSummary:{setText:()=>{}},url:{text:()=> 'https://example.com'},key:{text:()=> 'test-key'},model:{text:()=> 'model'},fishKey:{text:()=> ''},voice:{text:()=> ''},autoSpeak:{isChecked:()=>true},speechRate:{getProgress:()=>64},systemPitch:{getProgress:()=>34},rateLabel:{setText:()=>{}},pitchLabel:{setText:()=>{}}};
- const b=load(['saveConfig','syncVoiceSettings','normalizeApiUrl'],{C:{provider:'fish',voice:'saved-id',systemVoice:'old-app-override'},ui,Companion:require('../src/CompanionCore.js'),clamp:(n,a,z)=>Math.max(a,Math.min(z,n)),store:{put:(k,v)=>data[k]=v}});b.saveConfig();
+ const data={},ui={asrWire:{getSelectedItemPosition:()=>0},asrModel:{text:()=>"mimo-v2.5-asr"},dailyMemory:{isChecked:()=>true},visionModel:{text:()=>''},agentEnabled:{isChecked:()=>true},connectionSummary:{setText:()=>{}},url:{text:()=> 'https://example.com'},key:{text:()=> 'test-key'},model:{text:()=> 'model'},fishKey:{text:()=> ''},voice:{text:()=> ''},autoSpeak:{isChecked:()=>true},speechRate:{getProgress:()=>64},systemPitch:{getProgress:()=>34},rateLabel:{setText:()=>{}},pitchLabel:{setText:()=>{}}};
+ const b=load(['saveConfig','syncVoiceSettings','normalizeApiUrl'],{rememberModelChoice:()=>{},C:{provider:'fish',voice:'saved-id',systemVoice:'old-app-override'},ui,Companion:require('../src/CompanionCore.js'),clamp:(n,a,z)=>Math.max(a,Math.min(z,n)),store:{put:(k,v)=>data[k]=v}});b.saveConfig();
  assert.equal(data.voiceProviderV4,'fish');assert.equal(data.systemVoiceChoiceV43,'');assert.equal(data.notificationsV3,true);assert.equal(data.voiceId,'saved-id');assert.equal(data.speechRateV4,1.14);assert.equal(data.autoSpeakV3,true);
 });
 test('permission entry skips granted permissions and never opens settings when ready',()=>{

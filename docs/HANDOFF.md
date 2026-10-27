@@ -6,7 +6,10 @@
 
 ## 当前状态
 
-当前源码与手机通道均已发布 4.0.0-preview12，启动器 2.0。源码提交 25cc50f39d1c9ce1485cf231de852efbaabb4ae7；发布后已匿名下载校验 ZIP 与启动器，并核对公开 raw 更新指针。ZIP 2113560 字节，SHA-256 a9d623e95be7822bb103411ee6983dd4cd9da2de10b917c81a9bc9787e06cbab。未来状态仍须核对根 update.json。173 项桌面检查通过；没有安卓实机、真实 API 或 UI 视觉验收。用户 OPPO Find X7 / Android 16，系统 RecognitionService 和 RECOGNIZE_SPEECH Activity 均缺失，旧错误 5 不是单凭加权限就能修。默认改原中转站 mimo-v2.5-asr：AudioRecord PCM → WAV → Chat Completions input_audio，未实测网关。桌面/前台真实收音是最高优先验收。
+当前源码 4.0.0-preview13，发布状态核对 update.json 与 Release。199 项桌面检查通过，未连接安卓手机或进行真实付费 API 验证。用户 OPPO Find X7 / Android 16 已确认系统识别服务/Activity 缺失；preview12 relay ASR 实际返回 HTTP 400。preview13 增加标准 Base64 最小请求与 Data URL 选择、真实服务端脱敏错误，不可宣称已彻底修复 ASR。
+
+本轮新增多 API 渠道/模型候选导入和切换、独立对话/录音测试结果、按日历史会话、隐藏回复单击找回、气泡简化、快速读屏与按需截图分路、同次共享授权复用、空白/占位输出诊断。测试使用假密钥、合成日志和模拟 UI/网络，不能作为手机验收。
+
 
 ## 源码与维护
 
@@ -21,7 +24,7 @@
 
 ## 能力与边界
 
-动态提示词依据真实工具能力，当前视觉模型不再被提示词绑死。工具循环最多八步，执行前后检查取消令牌，文件覆盖要求本轮读取哈希。截图在工作线程调用、单次授权释放、缩图后上传；本地图片亦受大小与路径约束。无障碍以可见节点操作，不提供任意坐标、shell/eval，不自动点击最终发送/支付。
+动态提示词依据真实工具能力，当前视觉模型不再被提示词绑死。工具循环最多八步，执行前后检查取消令牌，文件覆盖要求本轮读取哈希。截图在工作线程调用、同次共享复用授权、退出/手动停止释放、缩图后上传；本地图片亦受大小与路径约束。无障碍以可见节点操作，不提供任意坐标、shell/eval，不自动点击最终发送/支付。
 
 共享存储默认 /sdcard/Jarvis/Workspace/，需安卓所有文件权限。保护 Android/data、obb、程序和历史；不承诺系统分区/应用私有数据可写。修改留备份、预期哈希防冲突、回收单文件可恢复；没有电脑执行服务，不能假称可修改电脑文件。
 
@@ -44,3 +47,16 @@
 先测前台真实录音、网关转写，再测桌面后台麦克风；零音频不上送，不再反复要求测试缺失系统页面。再测系统截屏授权/当前视觉模型、文件权限/恢复、无障碍跳转与输入、外点穿透/键盘、跨日整理与 Obsidian 手工区。保留测试与真机证据区分。用户提供 MiMo TTS/voiceclone/voicedesign 与 Doubao 候选，目前只接 ASR，不默认增加其他收费调用。
 
 使用与权限见 AGENT_GUIDE.md，发布见 MAINTENANCE.md，历史见 CHANGELOG.md。公共仓库禁止 Key、真实日记/通知/截图/候选音色名单。没有新增 CI/CD、电脑服务或长期 Codex 记忆。
+
+
+## preview13 接手重点
+
+API 渠道 apiChannelsV413 存本地，activeChannelV413 决定当前；原 dsUrl/dsKey/dsModel 仍同步，不能改成清空旧配置。候选键 modelsV413:<channel-id>，禁止按同 URL 混用不同 Key。JSON/文本批量导入为自动粘贴，不切当前，管理删除需确认。当前尚未提供独立 ASR 渠道交叉绑定，ASR 与对话沿用当前渠道地址/Key，模型独立。
+
+lastConversationV413 单独保存完成回复，临时听写/错误不覆盖；activeConversationDayV413 非空表示主动续聊历史日，默认仍跟随手机日历。历史选择用回调，最近 100 条可浏览、完整日记可搜。单击意图跨 290ms 双击等待保持，外点识别排除小人并延迟核对触摸。
+
+requestBrain 的 chatMessageText 兼容文本数组、单个 tool_calls；空白和只思考抛明确错误。normalizeAgentResult 拒绝空对象/占位，无效协议最多一次修正；修正失败要报告已发生的真实工具结果。没有新增直接自动发送工具。
+
+ASR400 真正服务端原因此前被丢掉，本版 httpFailure 只取错误消息/代码，脱敏 Key/长媒体，不把完整响应/录音落日志。requestRelayAsr 仍用 Chat Completions；Base64 模式不带 asr_options，Data URL 模式保留 language zh。停顿 900ms 收尾不等于流式识别，上传/模型推理仍有延迟，不能保证低延迟或成功。
+
+projectionActive 只保留当前宿主会话，正常截图完成不释放；没有定时抓帧。系统撤销导致捕获失败时释放并要求重授权。新增停止共享入口在更多设置，退出释放；未缓存 Android 投屏授权令牌。

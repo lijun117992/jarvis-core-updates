@@ -3,7 +3,7 @@ const APP_DIR = String(new java.io.File(String(engines.myEngine().source)).getPa
 const Companion = require(files.join(APP_DIR, "CompanionCore.js"));
 /* Jarvis Core v4 / Blue Fox preview — AutoJs6. Android device validation is still required.
  * No embedded credentials. Reuses the original jarvis_config_v2 storage in place.
- * SpeechRecognizer is supplied by the PHONE, not by DeepSeek or Fish TTS.
+ * Relay ASR is separate from chat and TTS; native recognizers remain optional.
  */
 const C = {
     url: "", key: "", model: "", fishKey: "", voice: "",
@@ -23,6 +23,10 @@ let state = "IDLE", rms = 0, unread = false, docked = false, side = "right";
 let dockTimer = null, tapTimer = null, dragActive = false;
 let lastAnswer = "", lastTitle = "Jarvis", lastNotice = null, lastDraft = "", lastTargetPackage = "", lastDraftNotification = null, expanded = false, editorText = "";
 let relaySession = null;
+let savedConversation = store.get("lastConversationV413", null), activeConversationDay = store.get("activeConversationDayV413", "");
+let lastOrbTouchAt = 0, projectionActive = false;
+let apiChannels = [], activeChannelId = store.get("activeChannelV413", ""), channelsReady = false, refreshingChannels = false, channelImportTimer = null;
+let availableModels = [], refreshingModels = false, chatTestSerial = 0;
 let recognizer = null, speechTimer = null, recognitionId = 0, listening = false, recognizerSource = "";
 let busy = false, noticeBusy = false, noticeStarted = false, agentEpoch = 0;
 let recentAgentTurns = [], recentAgentDay = "", dailyMemoryBusy = false, dailyMemoryRetryAt = 0;
@@ -37,7 +41,7 @@ ui.layout(
         <vertical padding="24 28">
             <text text="JARVIS" textColor="#6486AC" textSize="12sp"/>
             <text text="你的小狐妖" textColor="#18324F" textSize="29sp" marginTop="8"/>
-            <text text="单击听写 · 双击输入 · 长按找回回复" textColor="#657B91" textSize="12sp" marginTop="6" marginBottom="24"/>
+            <text text="单击听写/找回 · 双击输入 · 长按历史" textColor="#657B91" textSize="12sp" marginTop="6" marginBottom="24"/>
             <button id="start" text="召唤小狐妖" h="54" textSize="16sp"/>
             <text id="stopTask" text="停止任务" visibility="gone" textColor="#4E7BAE" textSize="13sp" padding="8 12"/>
             <text id="status" text="准备好了，随时陪你。" textColor="#657B91" textSize="12sp" marginTop="10" marginBottom="24"/>
@@ -88,12 +92,24 @@ ui.layout(
                 </horizontal>
                 <text id="connectionSummary" text="连接你的模型" textColor="#657B91" textSize="12sp"/>
                 <vertical id="connectionPane" visibility="gone" marginTop="10">
+                    <spinner id="channelChoices" entries="原有渠道"/>
+                    <horizontal><text id="importChannels" text="新增 / 导入" textColor="#4E7BAE" padding="8" layout_weight="1"/><text id="manageChannels" text="管理渠道" textColor="#4E7BAE" padding="8"/></horizontal>
+                    <vertical id="channelImportPane" visibility="gone">
+                        <input id="channelImport" h="110" inputType="textMultiLine|textNoSuggestions" gravity="top" hint="粘贴渠道 JSON，或每组填名称、HTTPS 地址、Key、模型，组间空行"/>
+                        <text id="channelImportResult" text="粘贴后自动导入，Key 只保存在本机。" textColor="#657B91" textSize="12sp"/>
+                    </vertical>
                     <input id="url" hint="HTTPS 中转站地址"/>
                     <input id="key" hint="API Key" inputType="textPassword"/>
-                    <input id="model" hint="模型名称"/>
+                    <spinner id="modelChoices" entries="填写或获取模型"/>
+                    <input id="model" hint="当前对话模型（可手动填写）"/>
+                    <horizontal><text id="saveModel" text="保存候选" textColor="#4E7BAE" padding="8" layout_weight="1"/><text id="fetchModels" text="获取模型列表" textColor="#4E7BAE" padding="8"/></horizontal>
                     <input id="visionModel" hint="独立视觉模型（选填，留空使用当前模型）"/>
                     <input id="fishKey" hint="Fish API Key（使用 Fish 时填写）" inputType="textPassword"/>
-                    <button id="testApi" text="测试连接" textSize="12sp"/>
+                    <button id="testApi" text="测试对话模型" textSize="12sp"/>
+                    <text id="chatTestResult" text="" textColor="#657B91" textSize="12sp"/>
+                    <input id="asrModel" hint="语音识别模型"/>
+                    <button id="testAsr" text="测试听写模型（录音）" textSize="12sp"/>
+                    <text id="asrTestResult" text="" textColor="#657B91" textSize="12sp"/>
                 </vertical>
             </vertical>
             <horizontal gravity="center_vertical">
@@ -108,15 +124,18 @@ ui.layout(
                 <text text="听写方式" textColor="#657B91" textSize="12sp" marginTop="12"/>
                 <spinner id="recognitionMode" entries="自动"/>
                 <vertical id="asrOptions" visibility="gone">
-                    <input id="asrModel" hint="接口听写模型"/>
+                    <spinner id="asrWire" entries="标准 Base64|MiMo Data URL"/>
                     <text text="录音发往现有中转站用于本次转写，不保存录音。停顿自动结束，单击可提前结束，点击气泡外取消。" textColor="#657B91" textSize="12sp"/>
                 </vertical>
+                <text id="history" text="历史会话 ›" textColor="#4E7BAE" padding="8"/>
+                <text text="点“读屏”快速读取文字，长按“读屏”截图识图。截图授权保留至停止共享或退出，不连续读取画面。" textColor="#657B91" textSize="12sp"/>
+                <text id="stopProjection" text="停止屏幕共享" visibility="gone" textColor="#4E7BAE" padding="8"/>
                 <horizontal><button id="testCompatSpeech" text="兼容页面测试" layout_weight="1" textSize="12sp"/><button id="testRecognition" text="前台听写测试" layout_weight="1" textSize="12sp"/></horizontal>
                 <text text="微信、QQ、钉钉通知默认分析；通知文字与人设将发送至你配置的模型。读屏仍需预览后发送。" textColor="#657B91" textSize="12sp" marginTop="12"/>
                 <text text="若调音量会退出，请在 AutoJs6 关闭音量加键停止脚本。记忆保存在 /sdcard/Jarvis/Memory/。" textColor="#657B91" textSize="12sp" marginTop="10"/>
                 <button id="exitCompanion" text="退出小狐妖" textSize="12sp" marginTop="12"/>
             </vertical>
-            <text text="BLUE FOX · preview12" textColor="#7B93AC" textSize="10sp" gravity="center" marginTop="24"/>
+            <text text="BLUE FOX · preview13" textColor="#7B93AC" textSize="10sp" gravity="center" marginTop="24"/>
         </vertical>
     </scroll>
 );
@@ -133,6 +152,7 @@ ui.url.setText(store.get("dsUrl", "https://api.deepseek.com"));
 ui.key.setText(store.get("dsKey", ""));
 ui.model.setText(store.get("dsModel", "deepseek-chat"));
 ui.visionModel.setText(store.get("visionModelV412", ""));
+C.asrWire = store.get("asrWireV413", "base64"); ui.asrWire.setSelection(C.asrWire === "data-url" ? 1 : 0);
 C.visionModel = String(ui.visionModel.text()).trim();
 ui.asrModel.setText(store.get("asrModelV412", "mimo-v2.5-asr")); C.asrModel = String(ui.asrModel.text()).trim();
 C.agentEnabled = store.get("agentEnabledV412", true) !== false; ui.agentEnabled.setChecked(C.agentEnabled);
@@ -147,7 +167,7 @@ store.put("notificationsV3", true);
 
 function normalizeApiUrl(raw) {
     let url = String(raw || "").trim().replace(/\/+$/, "");
-    if (!/^https:\/\/[^\s/?#]+(?:\/[^\s?#]*)?$/.test(url)) throw Error("请填写 HTTPS 地址，不要附带查询参数或 Key");
+    if (!/^https:\/\/[^\s/?#@]+(?:\/[^\s?#]*)?$/.test(url)) throw Error("请填写 HTTPS 地址，不要附带查询参数或 Key");
     if (/\/chat\/completions$/.test(url)) return url;
     return url + (/\/v\d+$/.test(url) ? "/chat/completions" : "/v1/chat/completions");
 }
@@ -157,6 +177,7 @@ function saveConfig() {
     C.fishKey = String(ui.fishKey.text()).trim();
     C.dailyMemory = ui.dailyMemory.isChecked(); store.put("dailyMemoryV412", C.dailyMemory);
     C.asrModel = String(ui.asrModel.text()).trim(); store.put("asrModelV412", C.asrModel);
+    C.asrWire = ui.asrWire.getSelectedItemPosition() === 1 ? "data-url" : "base64"; store.put("asrWireV413", C.asrWire);
     C.visionModel = String(ui.visionModel.text()).trim(); C.agentEnabled = ui.agentEnabled.isChecked();
     store.put("visionModelV412", C.visionModel); store.put("agentEnabledV412", C.agentEnabled);
     syncVoiceSettings();
@@ -164,7 +185,7 @@ function saveConfig() {
     store.put("dsUrl", String(ui.url.text()).trim()); store.put("dsKey", C.key);
     store.put("dsModel", C.model); store.put("fishKey", C.fishKey); store.put("voiceId", C.voice);
     store.put("autoSpeakV3", C.autoSpeak); store.put("notificationsV3", C.notifications);
-    ui.connectionSummary.setText(C.model);
+    ui.connectionSummary.setText(C.model); rememberModelChoice();
 }
 function status(text) { if (!exiting) main(function() { if (!exiting) ui.status.setText(String(text)); }); }
 function safeError(e) {
@@ -207,18 +228,16 @@ ui.start.on("click", function() { runConfigured(function() {
         initMemory();
         if (!started) { beginCompanion(); return; }
         if (C.notifications) startNotifications();
-        status("已启动。单击听写，双击输入，长按回复。系统语音：" + ttsStatus);
+        status("已启动。单击听写，双击输入，长按历史。系统语音：" + ttsStatus);
     } catch (e) { status("启动失败：" + safeError(e)); }
 }); });
-ui.testApi.on("click", function() { runConfigured(function() {
-    if (!C.key) { status("请填写中转站 Key。"); return; }
-    status("正在测试连接…");
-    const cfg = brainConfig();
-    threads.start(function() {
-        try { let r = requestBrain([{ role: "user", content: "请只回答：连接成功" }], cfg); status("连接成功：" + r); }
-        catch (e) { status("连接失败：" + safeError(e)); }
-    });
-}); });
+ui.testApi.on("click", testChatConnection);
+ui.testAsr.on("click", function() { runConfigured(function() { if (listening || busy) { ui.asrTestResult.setText("请先结束当前录音或任务"); return; } ui.asrTestResult.setText("请说一句话，使用 " + C.asrModel + "，结果仅用于听写测试。"); startRelayListening(true); }); });
+ui.fetchModels.on("click", fetchModelChoices);
+ui.saveModel.on("click", function() { runConfigured(function() { ui.chatTestResult.setText("已保存当前候选：" + C.model); }); });
+ui.modelChoices.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener({ onItemSelected: function(parent, view, position, id) { let name = availableModels[position]; if (!refreshingModels && name && name !== String(ui.model.text())) { ui.model.setText(name); runConfigured(function() { status("已选择对话模型：" + C.model); }); } }, onNothingSelected: function() {} }));
+ui.history.on("click", openConversationHistory);
+ui.stopProjection.on("click", releaseScreenProjection);
 ui.testTts.on("click", function() { syncVoiceSettings(); stopAudio(); systemSpeak("你好，我是 Jarvis。这是系统中文语音测试。", audioEpoch); });
 ui.testFish.on("click", function() { runConfigured(function() {
     fishRetryAt = 0; speak("你好，这是 Fish 免费模型语音测试。", true, "fish");
@@ -248,15 +267,244 @@ function extractJsonFromText(raw) {
         return JSON.parse(s.slice(first, last + 1));
     }
 }
+function conversationDay() { return /^\d{4}-\d{2}-\d{2}$/.test(String(activeConversationDay || "")) && activeConversationDay <= taskDayKey() ? activeConversationDay : taskDayKey(); }
+function rememberConversation(title, text, meta) {
+    savedConversation = { day: conversationDay(), title: title, text: Companion.plainReply(text), draft: meta && meta.draft || "", targetPackage: meta && meta.targetPackage || "" };
+    try { store.put("lastConversationV413", { day: savedConversation.day, title: title, text: safeDayText(savedConversation.text), draft: safeDayText(savedConversation.draft), targetPackage: savedConversation.targetPackage }); }
+    catch (e) { status("回复仍在本次运行中保留，重启恢复暂未保存：" + safeError(e)); }
+}
+function restoreConversation() {
+    if (!savedConversation || !savedConversation.text) { openConversationHistory(); return; }
+    showAnswer(savedConversation.title, savedConversation.text, false, null, false, { draft: savedConversation.draft, targetPackage: savedConversation.targetPackage });
+}
+function handleOrbSingleTap(wasListening) {
+    // The recording may finish during the double-tap grace period. That same
+    // gesture must not be reinterpreted as a request for another recording.
+    if (wasListening === true && !listening && !relaySession) { if (!panel && savedConversation) restoreConversation(); return; }
+    if (listening || relaySession) {
+        if (relaySession && relaySession.phase === "recording") { relaySession.finish = true; status("正在结束录音…"); }
+        else if (relaySession) status("正在转写，未启动新的录音。");
+        else { stopListening(); if (savedConversation) restoreConversation(); else closePanel(); }
+        return;
+    }
+    if (busy) { if (!panel) showAnswer("正在处理", "任务仍在进行，请稍候。", false); return; }
+    if (!panel && savedConversation) { restoreConversation(); return; }
+    startListening();
+}
+function outsideHitsOrb(event) {
+    if (!orb || typeof event.getRawX !== "function") return false;
+    let x = event.getRawX(), y = event.getRawY();
+    return x >= orb.getX() && x <= orb.getX() + orbSize && y >= orb.getY() && y <= orb.getY() + orbSize;
+}
+function openConversationHistory() {
+    if (busy || listening) { status("请先结束录音或当前任务再切换会话。"); return; }
+    threads.start(function() {
+        try {
+            let directory = C.memory + "Daily/", today = taskDayKey();
+            let days = files.exists(directory) ? files.listDir(directory).filter(function(n) { return /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(n); }).map(function(n) { return n.slice(0, -6); }).sort().reverse() : [];
+            if (days.indexOf(today) < 0) days.unshift(today);
+            let labels = days.map(function(d) { return d + (d === today ? " · 今天" : "") + (d === conversationDay() ? " · 当前" : ""); });
+            main(function() { dialogs.select("按日期切换会话", labels, function(chosen) {
+                if (chosen < 0 || !days[chosen]) return;
+                let day = days[chosen];
+                threads.start(function() {
+                    try {
+                        let turns = [];
+                        scanDayRecords(day, function(entry) { turns.push(entry); if (turns.length > 100) turns.shift(); });
+                        main(function() {
+                            if (!turns.length) { activateConversationDay(day, null); return; }
+                            dialogs.select(day + " · 最近 100 条", turns.slice().reverse().map(function(t) { return String(t.user).replace(/\s+/g, " ").slice(0, 50); }), function(index) { if (index >= 0 && index < turns.length) main(function() { activateConversationDay(day, turns[turns.length - 1 - index]); }); });
+                        });
+                    } catch (e) { status("读取会话失败：" + safeError(e)); }
+                });
+            }); });
+        } catch (e) { status("读取会话失败：" + safeError(e)); }
+    });
+}
+function activateConversationDay(day, entry) {
+    if (busy || listening) { status("当前已有新任务，未切换会话。"); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day > taskDayKey()) throw Error("无效会话日期");
+    stopAudio(); closeEditor();
+    activeConversationDay = day === taskDayKey() ? "" : day; store.put("activeConversationDayV413", activeConversationDay);
+    recentAgentTurns = []; recentAgentDay = day;
+    if (entry) { rememberConversation("Jarvis · " + day, entry.assistant); restoreConversation(); }
+    else { savedConversation = null; store.remove("lastConversationV413"); openEditor(""); }
+    status("当前会话：" + day + "。后续问题沿用该日上下文；历史入口可返回今天。");
+}
+function httpFailure(label, response, cfg) {
+    let detail = "", body;
+    try {
+        if (typeof response.body.string === "function") { let raw = String(response.body.string()); if (raw.length <= 12000) body = JSON.parse(raw); }
+        else body = response.body.json();
+        let error = body && (body.error || body);
+        if (typeof error === "string") detail = error;
+        else if (error) detail = String(error.message || error.detail || "") + (error.code ? "（" + error.code + "）" : "");
+    } catch (ignored) {}
+    detail = detail.replace(/data:(?:audio|image)\/[^;]+;base64,[A-Za-z0-9+/=]+/g, "[媒体省略]").replace(/[A-Za-z0-9+/=]{160,}/g, "[长编码省略]");
+    if (cfg && cfg.key) detail = detail.split(cfg.key).join("[密钥已隐藏]");
+    return label + " HTTP " + response.statusCode + (detail ? "：" + safeError(detail) : "，服务端未返回可显示的错误原因") + (Number(response.statusCode) === 400 ? "。400 表示请求被拒绝，不等于额度不足。" : "");
+}
+function chatMessageText(body) {
+    let envelope = body && body.choices ? body : body && body.data;
+    let choice = envelope && envelope.choices && envelope.choices[0], message = choice && choice.message;
+    if (!message) throw Error("接口响应缺少 choices.message，请检查此模型是否使用对话端点");
+    let text = message.content;
+    if (Array.isArray(text)) text = text.map(function(p) { return p && (p.type === "text" || p.type === "output_text") && typeof p.text === "string" ? p.text : ""; }).join("\n");
+    if (Array.isArray(message.tool_calls) && message.tool_calls.length) {
+        if (message.tool_calls.length !== 1) throw Error("模型一次返回多个工具调用，当前执行器仅支持逐步调用；本次未执行这些操作");
+        let fn = message.tool_calls[0].function;
+        if (!fn || typeof fn.name !== "string") throw Error("模型工具调用缺少函数名");
+        let args = typeof fn.arguments === "string" ? JSON.parse(fn.arguments) : fn.arguments || {};
+        return JSON.stringify({ action: { tool: fn.name, args: args } });
+    }
+    if (typeof text === "string" && text.trim()) return text.trim();
+    if (typeof message.refusal === "string" && message.refusal) throw Error("模型拒绝回答：" + message.refusal);
+    throw Error("模型返回空白最终回答" + (choice.finish_reason ? "（" + choice.finish_reason + "）" : "") + "；请换候选模型或重新测试。仅思考内容不能代替回答");
+}
+function normalizeAgentResult(raw) {
+    let content;
+    try { content = extractJsonFromText(raw); } catch (e) { content = { answer: raw }; }
+    if (typeof content === "string") content = { answer: content };
+    if (!content || typeof content !== "object" || Array.isArray(content)) throw Error("模型回复没有有效回答对象");
+    if (content.action) {
+        if (typeof content.action !== "object" || typeof content.action.tool !== "string" || !content.action.tool.trim()) throw Error("模型工具请求缺少 tool，本次未执行");
+        return content;
+    }
+    let answer = content.answer || content.spoken_reply || content.reply || content.content || content.message;
+    if (typeof answer !== "string" || !answer.trim() || /^(?:暂无内容|无内容|null|undefined)$/i.test(answer.trim())) throw Error("模型只返回了空白或“暂无内容”占位，未得到可用回答");
+    content.answer = answer.trim(); return content;
+}
+function channelModelKey(url) { return "modelsV413:" + (activeChannelId || url); }
+function channelSnapshot() { return { id: activeChannelId, name: "", url: C.url, key: C.key, model: C.model, asrModel: C.asrModel, visionModel: C.visionModel, asrWire: C.asrWire, models: modelNames(store.get(channelModelKey(C.url), [])) }; }
+function saveCurrentChannel() {
+    if (!channelsReady) return;
+    let at = apiChannels.map(function(p) { return p.id; }).indexOf(activeChannelId); if (at < 0) return;
+    let next = channelSnapshot(); next.name = apiChannels[at].name; apiChannels[at] = next;
+    store.put("apiChannelsV413", apiChannels);
+}
+function renderChannels() {
+    refreshingChannels = true;
+    try { lightSpinner(ui.channelChoices, apiChannels.map(function(p) { return p.name; })); let at = apiChannels.map(function(p) { return p.id; }).indexOf(activeChannelId); if (at >= 0) ui.channelChoices.setSelection(at); }
+    finally { refreshingChannels = false; }
+}
+function selectApiChannel(id) {
+    if (id === activeChannelId) return;
+    if (busy || listening || dailyMemoryBusy) { status("请先结束当前任务再切换 API 渠道。"); renderChannels(); return; }
+    let next = apiChannels.filter(function(p) { return p.id === id; })[0]; if (!next) return;
+    saveConfig(); activeChannelId = id; store.put("activeChannelV413", id);
+    ui.url.setText(next.url); ui.key.setText(next.key); ui.model.setText(next.model || ""); ui.asrModel.setText(next.asrModel || "mimo-v2.5-asr"); ui.visionModel.setText(next.visionModel || ""); ui.asrWire.setSelection(next.asrWire === "data-url" ? 1 : 0);
+    store.put(channelModelKey(next.url), modelNames(next.models || []));
+    saveConfig(); ui.chatTestResult.setText(""); ui.asrTestResult.setText(""); status("已切换渠道：" + next.name);
+}
+function importApiChannels() {
+    let raw = String(ui.channelImport.text());
+    if (!raw.trim()) { ui.channelImportResult.setText("粘贴后自动识别，Key 只保存在本机。"); return; }
+    let plan = Companion.planChannelImport(raw);
+    if (!plan.channels.length) { ui.channelImportResult.setText("尚未识别到完整渠道：需要 HTTPS 地址和 Key。支持 JSON 数组，或每组依次填名称、地址、Key、模型，组间空行。"); return; }
+    if (!channelsReady || busy || listening || dailyMemoryBusy) { ui.channelImportResult.setText("当前有任务或渠道记录异常，请结束任务后重新粘贴。"); return; }
+    saveConfig(); let added = 0, duplicates = 0;
+    plan.channels.forEach(function(item) {
+        if (apiChannels.some(function(p) { return p.url === item.url && p.key === item.key; })) { duplicates++; return; }
+        item.id = "channel-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10); apiChannels.push(item); added++;
+    });
+    store.put("apiChannelsV413", apiChannels); renderChannels();
+    ui.channelImportResult.setText("已导入 " + added + " 个渠道，跳过重复 " + duplicates + " 个" + (plan.invalid ? "；另有 " + plan.invalid + " 组未完整识别" : "") + "。当前渠道未改变。");
+}
+function manageApiChannels() {
+    if (!channelsReady) { status("渠道记录异常，原数据已保留。"); return; }
+    dialogs.select("管理渠道", apiChannels.map(function(p) { return p.name; }), function(index) {
+        if (index < 0) return; let id = apiChannels[index].id;
+        dialogs.select("渠道操作", ["改名", "删除本地候选"], function(action) {
+            if (action === 0) dialogs.rawInput("渠道名称", apiChannels[index].name, function(name) {
+                if (!name || !String(name).trim()) return;
+                let target = apiChannels.filter(function(p) { return p.id === id; })[0]; if (!target) return;
+                target.name = String(name).trim().slice(0, 80); store.put("apiChannelsV413", apiChannels); renderChannels();
+            });
+            if (action === 1) {
+                if (id === activeChannelId) { status("请先切换其他渠道，再删除此候选。"); return; }
+                dialogs.confirm("删除此本地渠道？", "只删除手机候选，不会撤销平台的 Key。", function(yes) { if (yes && id !== activeChannelId) { apiChannels = apiChannels.filter(function(p) { return p.id !== id; }); store.put("apiChannelsV413", apiChannels); store.remove("modelsV413:" + id); renderChannels(); } });
+            }
+        });
+    });
+}
+function bindApiChannels() {
+    let saved = store.get("apiChannelsV413", null);
+    if (saved !== null && (!Array.isArray(saved) || !saved.length || !saved.every(function(p) { return p && typeof p.id === "string" && typeof p.name === "string" && typeof p.url === "string" && typeof p.key === "string"; }))) { status("渠道记录格式异常，未覆盖原数据；可继续使用当前连接。"); return; }
+    if (saved) apiChannels = saved;
+    else {
+        apiChannels = [{ id: "original", name: "原有渠道", url: normalizeApiUrl(ui.url.text()), key: String(ui.key.text()), model: String(ui.model.text()), asrModel: String(ui.asrModel.text()), visionModel: String(ui.visionModel.text()), asrWire: C.asrWire || "base64", models: modelNames(store.get("modelsV413:" + normalizeApiUrl(ui.url.text()), [String(ui.model.text())])) }];
+        store.put("apiChannelsV413", apiChannels);
+    }
+    activeChannelId = apiChannels.some(function(p) { return p.id === activeChannelId; }) ? activeChannelId : apiChannels[0].id;
+    let selected = apiChannels.filter(function(p) { return p.id === activeChannelId; })[0];
+    ui.url.setText(selected.url); ui.key.setText(selected.key); ui.model.setText(selected.model || ""); ui.asrModel.setText(selected.asrModel || "mimo-v2.5-asr"); ui.visionModel.setText(selected.visionModel || ""); ui.asrWire.setSelection(selected.asrWire === "data-url" ? 1 : 0);
+    channelsReady = true; store.put("activeChannelV413", activeChannelId); store.put(channelModelKey(selected.url), modelNames(selected.models || [selected.model])); renderChannels();
+    refreshModelChoices(modelNames(selected.models || [selected.model]));
+    ui.channelChoices.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener({ onItemSelected: function(parent, view, position) { if (!refreshingChannels && apiChannels[position]) selectApiChannel(apiChannels[position].id); }, onNothingSelected: function() {} }));
+    ui.importChannels.on("click", function() { ui.channelImportPane.setVisibility(ui.channelImportPane.getVisibility() === V.GONE ? V.VISIBLE : V.GONE); });
+    ui.manageChannels.on("click", manageApiChannels);
+    ui.channelImport.addTextChangedListener(new android.text.TextWatcher({ beforeTextChanged: function() {}, onTextChanged: function() { if (channelImportTimer) clearTimeout(channelImportTimer); channelImportTimer = setTimeout(function() { channelImportTimer = null; main(function() { if (!exiting && ui.channelImportPane.getVisibility() === V.VISIBLE) importApiChannels(); }); }, 700); }, afterTextChanged: function() {} }));
+}
+
+function modelNames(values) {
+    let result = [];
+    (Array.isArray(values) ? values : []).forEach(function(v) { let name = typeof v === "string" ? v.trim() : v && typeof v.id === "string" ? v.id.trim() : ""; if (name && name.length <= 160 && !/[\r\n]/.test(name) && result.indexOf(name) < 0 && result.length < 500) result.push(name); });
+    return result;
+}
+function rememberModelChoice() {
+    let key = channelModelKey(C.url), names = modelNames(store.get(key, []));
+    if (C.model && names.indexOf(C.model) < 0) names.unshift(C.model);
+    store.put(key, names.slice(0, 500)); refreshModelChoices(names); saveCurrentChannel();
+}
+function refreshModelChoices(names) {
+    availableModels = modelNames(names); refreshingModels = true;
+    try { lightSpinner(ui.modelChoices, availableModels.length ? availableModels : ["填写或获取模型"]); let at = availableModels.indexOf(String(ui.model.text()).trim()); if (at >= 0) ui.modelChoices.setSelection(at); }
+    finally { refreshingModels = false; }
+}
+function testChatConnection() {
+    runConfigured(function() {
+        let cfg = brainConfig(), serial = ++chatTestSerial;
+        ui.chatTestResult.setText("正在测试对话：" + cfg.model); ui.testApi.setEnabled(false);
+        threads.start(function() {
+            let result, startedAt = Date.now();
+            try { let text = requestBrain([{ role: "user", content: "请只回答：连接成功" }], cfg); result = "对话成功 · " + cfg.model + " · " + ((Date.now() - startedAt) / 1000).toFixed(1) + " 秒\n" + text; }
+            catch (e) { result = "对话失败 · " + cfg.model + "\n" + safeError(e); }
+            main(function() { if (!exiting && serial === chatTestSerial) { ui.chatTestResult.setText(result); ui.testApi.setEnabled(true); } });
+        });
+    });
+}
+function fetchModelChoices() {
+    runConfigured(function() {
+        let cfg = brainConfig(), key = channelModelKey(C.url), channelId = activeChannelId;
+        if (!cfg.key) { ui.chatTestResult.setText("请填写 API Key"); return; }
+        ui.fetchModels.setEnabled(false); ui.chatTestResult.setText("正在获取此接口的模型…");
+        threads.start(function() {
+            let names, error;
+            try { let response = http.get(cfg.url.replace(/chat\/completions$/, "models"), { headers: { Authorization: "Bearer " + cfg.key } }); if (response.statusCode !== 200) throw Error(httpFailure("模型列表", response, cfg)); let body = response.body.json(); names = modelNames(body.data || body.models); if (!names.length) throw Error("接口未返回模型列表，可手动填写并保存多个候选"); }
+            catch (e) { error = safeError(e); }
+            main(function() {
+                ui.fetchModels.setEnabled(true);
+                try { if (activeChannelId !== channelId || normalizeApiUrl(ui.url.text()) !== cfg.url) return; } catch (e) { return; }
+                if (names) { names = modelNames(modelNames(store.get(key, [])).concat(names)); store.put(key, names); refreshModelChoices(names); saveCurrentChannel(); ui.chatTestResult.setText("已保存 " + names.length + " 个候选模型。列表包含不代表每个模型都可调用，请单独测试。"); }
+                else ui.chatTestResult.setText(error);
+            });
+        });
+    });
+}
+function releaseScreenProjection() {
+    if (!projectionActive) return;
+    projectionActive = false;
+    try { images.stopScreenCapture(); } catch (e) { status("请在系统状态栏停止屏幕共享。"); }
+    main(function() { if (!exiting) ui.stopProjection.setVisibility(V.GONE); });
+}
+
 function brainConfig() { return { url: C.url, key: C.key, model: C.model }; }
 try { http.__okhttp__.setTimeout(45000); } catch (e) { status("当前引擎未提供 HTTP 超时设置，使用默认超时。"); }
 function requestBrain(messages, cfg) {
     if (!cfg.key) throw Error("尚未填写中转站 Key");
     let r = http.postJson(cfg.url, { model: cfg.model, messages: messages, temperature: 0.5 }, { headers: { Authorization: "Bearer " + cfg.key } });
-    if (r.statusCode !== 200) throw Error("中转站 HTTP " + r.statusCode + "，请检查地址、余额、Key 与模型名");
-    let body = r.body.json();
-    if (!body.choices || !body.choices[0] || !body.choices[0].message || typeof body.choices[0].message.content !== "string") throw Error("接口响应缺少文字 content");
-    return body.choices[0].message.content;
+    if (r.statusCode !== 200) throw Error(httpFailure("对话", r, cfg));
+    return chatMessageText(r.body.json());
 }
 function taskDayKey() { return Companion.localDayKey(new Date()); }
 function dailyPath(day, suffix) {
@@ -594,13 +842,17 @@ function inspectAgentImage(args, cfg, fileAgent, screen, epoch) {
     if (!cfg.visionModel) throw Error("请在大脑连接设置填写支持图片输入的视觉模型名称");
     let image = null, reduced = null, hidden = [], projection = false;
     function restoreViews() { ui.run(function() { hidden.forEach(function(item) { try { item.view.setVisibility(item.visibility); } catch (e) {} }); hidden = []; }); }
-    function releaseProjection() { if (projection) { projection = false; try { images.stopScreenCapture(); } catch (e) { status("请在系统状态栏停止屏幕共享。"); } } }
+    function releaseProjection() { if (projection && (epoch !== agentEpoch || exiting)) releaseScreenProjection(); }
     try {
         if (epoch !== agentEpoch || exiting) throw Error("任务已取消");
         if (screen) {
             // Request a normal Android projection session; never bypass OS consent.
             if (typeof images.stopScreenCapture !== "function") throw Error("当前 AutoJs6 不支持按任务释放截屏会话，请先升级宿主");
-            if (!images.requestScreenCapture()) throw Error("未获得本次屏幕捕获授权");
+            if (!projectionActive) {
+                if (!images.requestScreenCapture()) throw Error("未获得本次屏幕捕获授权");
+                projectionActive = true;
+                main(function() { if (!exiting) ui.stopProjection.setVisibility(V.VISIBLE); });
+            }
             projection = true;
             if (epoch !== agentEpoch || exiting) throw Error("任务已取消");
             ui.run(function() {
@@ -608,7 +860,7 @@ function inspectAgentImage(args, cfg, fileAgent, screen, epoch) {
                     if (view) { hidden.push({ view: view, visibility: view.getVisibility() }); view.setVisibility(V.GONE); }
                 });
             });
-            sleep(300); image = images.captureScreen();
+            sleep(150); try { image = images.captureScreen(); } catch (e) { releaseScreenProjection(); throw Error("屏幕共享已结束，请重试并重新授权：" + safeError(e)); }
         } else {
             let info = fileAgent.execute("fs.stat", { path: args.path });
             if (!info.exists || info.directory || info.bytes > 8388608 || !/\.(png|jpe?g|webp)$/i.test(info.path)) throw Error("请选择不超过 8 MiB 的 PNG/JPEG/WebP 图片");
@@ -642,8 +894,11 @@ function agentToolLabel(tool) {
 function toolResultSummary(results) {
     let changes = results.filter(function(r) { return r.ok && r.changed; });
     let failures = results.filter(function(r) { return !r.ok; });
+    let uiResults = results.filter(function(r) { return r.tool && r.tool.indexOf("ui.") === 0 && r.ok; });
     return "\n\n执行记录：" + changes.length + " 项文件更改，" + failures.length + " 项失败。" +
-        changes.map(function(r) { return "\n" + agentToolLabel(r.tool) + " · " + r.path + (r.undo_id ? "（已备份）" : ""); }).join("");
+        changes.map(function(r) { return "\n" + agentToolLabel(r.tool) + " · " + r.path + (r.undo_id ? "（已备份）" : ""); }).join("") +
+        uiResults.map(function(r) { return "\n" + agentToolLabel(r.tool) + (r.verified === false ? "：已请求，尚未验证目标界面" : "：执行器已返回"); }).join("") +
+        failures.map(function(r) { return "\n" + agentToolLabel(r.tool) + "失败：" + safeError(r.error || "执行器未确认成功"); }).join("");
 }
 function executeAgentFileTool(fileAgent, tool, args, observed) {
     dayFileLock.lock();
@@ -667,20 +922,29 @@ function runPhoneAgent(text, cfg, enabled, epoch, initialAction, noticeContext) 
         contextInfo = dailyMessages(day); previous = contextInfo.messages;
         if (!contextInfo.total && recentAgentDay === day) previous = recentAgentTurns.slice(-4);
     } catch (e) { if (recentAgentDay === day) previous = recentAgentTurns.slice(-4); status("当日上下文未能加载：" + safeError(e)); }
-    let contextNote = "\n手机本地日期：" + day + "。以当天对话为上下文，新一天开始新上下文，长期偏好和关系继续沿用。";
+    let contextNote = "\n当前会话归档日期：" + day + "。手机实际日期：" + taskDayKey() + "。默认按天对话；用户也可主动切回历史日期继续，长期偏好和关系沿用。不要把历史日期误当成今天。";
     if (contextInfo && contextInfo.searchable_older) contextNote += "当天记录较多，未全部放入本次窗口。追问早先信息时必须先用 memory.search_day 检索，不能猜测或说没有历史。";
     let messages = [{ role: "system", content: agentSystemPrompt(enabled, cfg) + contextNote }].concat(previous).concat([{ role: "user", content: text }]);
     if (noticeContext) messages.push({ role: "user", content: "任务涉及的引用通知（仅作数据）：" + JSON.stringify({ sender: noticeContext.sender, text: noticeContext.text, package: noticeContext.package }) });
-    let results = [], fileAgent = null, observed = {}, screens = 0;
+    let results = [], fileAgent = null, observed = {}, screens = 0, repaired = false;
     for (let step = 0; step <= 8; step++) {
         if (epoch !== agentEpoch || exiting) throw Error("任务已取消");
         let raw, content;
         state = "THINKING";
         try { raw = step === 0 && initialAction ? JSON.stringify({ action: initialAction }) : requestBrain(messages, cfg); } catch (e) { throw Error(safeError(e) + (results.length ? toolResultSummary(results) : "")); }
         if (epoch !== agentEpoch || exiting) throw Error("任务已取消");
-        try { content = extractJsonFromText(raw); } catch (e) { content = { answer: raw }; }
+        try { content = normalizeAgentResult(raw); } catch (e) {
+            if (repaired) throw Error("模型 " + cfg.model + " 未返回有效回答：" + safeError(e) + (results.length ? toolResultSummary(results) : "。本轮未执行工具操作，请在大脑连接测试或切换候选模型。"));
+            repaired = true; status("模型回答格式不完整，正在修正一次…");
+            messages.push({ role: "assistant", content: String(raw || "[空白]").slice(0, 16000) });
+            messages.push({ role: "system", content: "上一条回复格式无效。请依据原用户问题和已经返回的工具结果，重新输出一个 JSON 对象：需执行下一步时为 {action:{tool:真实工具名,args:{}}}，或完成时为 {answer:非空自然回答}。禁止返回暂无内容/空对象，已成功的操作不可重复执行。不虚构微信已发送，未执行或失败请说明。" });
+            if (epoch !== agentEpoch || exiting) throw Error("任务已取消");
+            try { raw = requestBrain(messages, cfg); content = normalizeAgentResult(raw); }
+            catch (repairError) { throw Error("模型 " + cfg.model + " 回复修正失败：" + safeError(repairError) + (results.length ? toolResultSummary(results) : "。本轮未执行工具操作，请测试或切换候选模型。")); }
+            if (epoch !== agentEpoch || exiting) throw Error("任务已取消");
+        }
         if (!content || typeof content !== "object" || Array.isArray(content)) throw Error("模型回复格式无效");
-        if (!content.action) { content.answer = String(content.answer || content.spoken_reply || raw); if (results.length) content.answer += toolResultSummary(results); return content; }
+        if (!content.action) { if (results.length) content.answer += toolResultSummary(results); return content; }
         if (!enabled) throw Error("模型请求了工具，但 Agent 工具已关闭");
         if (step === 8) return { answer: "已达到本轮 8 次工具上限，任务未确认全部完成。" + toolResultSummary(results) };
         let action = content.action, tool = String(action.tool || ""), args = action.args || {}, result;
@@ -702,7 +966,7 @@ function runPhoneAgent(text, cfg, enabled, epoch, initialAction, noticeContext) 
                 result = executeAgentFileTool(fileAgent, tool, args, observed);
             }
         } catch (e) { result = { ok: false, tool: tool, error: safeError(e) }; }
-        results.push(result);
+        result.tool = tool; results.push(result);
         // Audit contains metadata only, never API keys, file contents or screenshots.
         try {
             files.ensureDir("/sdcard/Jarvis/AgentData/");
@@ -721,7 +985,7 @@ function processUserCommand(text, initialAction) {
     if (busy) { showAnswer("正在处理", "上一条任务还在处理，可在面板停止任务。", false); return false; }
     if (!C.key) { showAnswer("连接未配置", "请回控制面板填写中转站 Key 并保存。", false); return false; }
     busy = true; state = "THINKING"; stopAudio();
-    let epoch = ++agentEpoch, enabled = C.agentEnabled !== false, day = taskDayKey(), startedAt = Date.now();
+    let epoch = ++agentEpoch, enabled = C.agentEnabled !== false, day = conversationDay(), startedAt = Date.now();
     if (recentAgentDay !== day) { recentAgentDay = day; recentAgentTurns = []; }
     let noticeForReply = /回复|回他|回她|回消息|草稿|reply/i.test(String(text)) ? (lastNotice || (lastIncomingNotice && Date.now() - lastIncomingNotice.at < 3600000 ? lastIncomingNotice : null)) : null;
     const cfg = { url: C.url, key: C.key, model: C.model, visionModel: C.visionModel || C.model, taskDay: day };
@@ -738,6 +1002,7 @@ function processUserCommand(text, initialAction) {
             try { appendDayTurn(day, text, answer, startedAt, noticeForReply); } catch (e) { answer += "\n\n本次日上下文未保存，请检查文件访问权限：" + safeError(e); }
             setMood(String(content.emotion || "IDLE").toUpperCase(), 8000);
             speechStyle = { mood: avatarMood, emphasis: Array.isArray(content.emphasis) ? content.emphasis.filter(function(w) { return typeof w === "string" && w.length >= 2 && w.length <= 12 && answer.indexOf(w) >= 0; }).slice(0, 3) : [] };
+            rememberConversation("Jarvis", answer, { draft: content.draft_message || "", targetPackage: content.target_package || (noticeForReply ? noticeForReply.package : "") });
             showAnswer("Jarvis", answer, true, null, true, { draft: content.draft_message || "", targetPackage: content.target_package || (noticeForReply ? noticeForReply.package : ""), notification: noticeForReply ? noticeForReply.notification : null });
         } catch (e) {
             let errorText = epoch === agentEpoch ? safeError(e) : "任务已取消，已完成修改可查询操作备份。";
@@ -789,7 +1054,7 @@ function createOrb(onReady, onFailure) {
     orb.touch.setOnTouchListener(function(view, e) {
         let a = e.getAction();
         if (a === 0) {
-            clearDockTimer(); dragActive = true; wasDocked = docked; sx = e.getRawX(); sy = e.getRawY();
+            lastOrbTouchAt = Date.now(); clearDockTimer(); dragActive = true; wasDocked = docked; sx = e.getRawX(); sy = e.getRawY();
             revealOrb(); ox = orb.getX(); oy = orb.getY(); down = Date.now(); moved = false; return true;
         }
         if (a === 2) {
@@ -801,9 +1066,9 @@ function createOrb(onReady, onFailure) {
         if (a === 1 || a === 3) {
             dragActive = false;
             if (a === 1 && !moved && !wasDocked) {
-                if (Date.now() - down > 550) { if (tapTimer) clearTimeout(tapTimer); tapTimer = null; showAnswer(lastTitle, lastAnswer || "还没有回复。单击听写，双击输入。", false, lastNotice, false, { draft: lastDraft, targetPackage: lastTargetPackage, notification: lastDraftNotification }); }
+                if (Date.now() - down > 550) { if (tapTimer) clearTimeout(tapTimer); tapTimer = null; openConversationHistory(); }
                 else if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; stopListening(); openEditor(editorText); }
-                else tapTimer = setTimeout(function() { tapTimer = null; main(startListening); }, 290);
+                else { let wasListening = listening || !!relaySession; tapTimer = setTimeout(function() { tapTimer = null; main(function() { handleOrbSingleTap(wasListening); }); }, 290); }
             }
             scheduleDock(); return true;
         }
@@ -839,7 +1104,8 @@ function watchOutsideCard(win, kind) {
         context.getSystemService(android.content.Context.WINDOW_SERVICE).updateViewLayout(root, params);
         root.setOnTouchListener(function(view, event) {
             if (event.getActionMasked() !== android.view.MotionEvent.ACTION_OUTSIDE) return false;
-            main(function() { dismissOutsideCard(win, kind); });
+            if (outsideHitsOrb(event)) return false;
+            setTimeout(function() { main(function() { if (!dragActive && Date.now() - lastOrbTouchAt > 220) dismissOutsideCard(win, kind); }); }, 100);
             return false;
         });
     } catch (e) { status("当前宿主未能启用点击外部收起，仍可点“收起”：" + safeError(e)); }
@@ -848,7 +1114,7 @@ function showAnswer(title, text, markUnread, notice, animate, replyMeta) {
     if (exiting) return;
     main(function() {
         if (exiting) return;
-        lastAnswer = Companion.plainReply(String(text || "暂无内容"));
+        lastAnswer = Companion.plainReply(String(text || "未得到有效回答，请检查模型测试结果。"));
         lastDraft = replyMeta && replyMeta.draft ? Companion.plainReply(replyMeta.draft) : "";
         lastTargetPackage = replyMeta && typeof replyMeta.targetPackage === "string" ? replyMeta.targetPackage : "";
         lastDraftNotification = replyMeta && replyMeta.notification ? replyMeta.notification : null; lastTitle = String(title || "Jarvis"); lastNotice = notice || null; unread = !!markUnread;
@@ -866,9 +1132,8 @@ function showAnswer(title, text, markUnread, notice, animate, replyMeta) {
                 <horizontal gravity="center_vertical" marginTop="9">
                     <text id="expand" text="展开" textColor="#355F98" padding="5 8" textSize="13sp" layout_weight="1"/>
                     <text id="copy" text="复制" textColor="#47617F" padding="8" textSize="13sp"/>
-                    <text id="read" text="朗读" textColor="#47617F" padding="8" textSize="13sp"/>
-                    <text id="stop" text="停声" textColor="#47617F" padding="8" textSize="13sp"/>
-                    <text id="screen" text="识图" textColor="#47617F" padding="8" textSize="13sp"/>
+                    <text id="history" text="历史" textColor="#47617F" padding="8" textSize="13sp"/>
+                    <text id="screen" text="读屏" textColor="#47617F" padding="8" textSize="13sp"/>
                 </horizontal>
                 <horizontal id="composeActions" visibility="gone">
                     <text id="openTarget" text="打开应用" padding="8" textColor="#355F98" textSize="13sp" layout_weight="1"/>
@@ -930,11 +1195,11 @@ function showAnswer(title, text, markUnread, notice, animate, replyMeta) {
             panel.expand.setText(expanded ? "折叠" : "展开"); placeCard(panel, bodyHeight + dp(148) + noticeExtra + draftExtra);
         });
         panel.copy.on("click", function() { setClip(lastAnswer); panel.title.setText("已复制全文"); });
-        panel.read.on("click", function() { speak(lastAnswer, true); });
-        panel.stop.on("click", function() { stopAudio(); setBubbleText(lastAnswer); });
-        panel.screen.on("click", function() {
-            if (C.agentEnabled === false) { status("请在更多设置开启 Agent 工具。"); return; }
-            closePanel(); processUserCommand("请查看并分析当前屏幕画面。", { tool: "screen.inspect", args: { question: "描述并分析当前屏幕实际可见的主要内容" } });
+        panel.history.on("click", openConversationHistory);
+        panel.screen.on("click", readScreen);
+        panel.screen.on("long_click", function() {
+            if (C.agentEnabled === false) { status("请在更多设置开启 Agent 工具。"); return true; }
+            closePanel(); processUserCommand("请查看并分析当前屏幕画面。", { tool: "screen.inspect", args: { question: "描述并分析当前屏幕实际可见的主要内容" } }); return true;
         });
         // Bubble follows its character; input card remains freely draggable.
         if (animate) startPresentation(lastAnswer, false, null, !!notice && !canAutoSpeak());
@@ -967,6 +1232,7 @@ function openEditor(text) {
                 <input id="input" h="86" textSize="16sp" textColor="#172C48" textColorHint="#60758E" hint="输入想说的话…" gravity="top" inputType="textMultiLine"/>
                 <horizontal gravity="center_vertical">
                     <text id="release" text="隐藏键盘" padding="4 8" textColor="#47617F" textSize="12sp" layout_weight="1"/>
+                    <text id="history" text="历史" padding="8" textColor="#47617F" textSize="12sp"/>
                     <text id="screen" text="读取界面" padding="8" textColor="#47617F" textSize="12sp"/>
                     <text id="send" text="发送 ↑" padding="10 8" textColor="#355F98" textSize="14sp"/>
                 </horizontal>
@@ -985,7 +1251,7 @@ function openEditor(text) {
             context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE).hideSoftInputFromWindow(editor.input.getWindowToken(), 0);
             editor.disableFocus();
         });
-        editor.screen.on("click", readScreen);
+        editor.screen.on("click", readScreen); editor.history.on("click", openConversationHistory);
         editor.send.on("click", function() {
             let value = String(editor.input.text()).trim();
             if (!value) return;
@@ -1012,9 +1278,9 @@ function cancelRelayRecording() {
     if (session.recorder) { try { session.recorder.stop(); } catch (e) {} try { session.recorder.release(); } catch (e) {} session.recorder = null; }
 }
 function requestRelayAsr(encoded, cfg) {
-    let payload = Companion.relayAsrPayload(encoded, cfg.asrModel);
+    let payload = Companion.relayAsrPayload(encoded, cfg.asrModel, cfg.asrWire || "base64");
     let response = http.postJson(cfg.url, payload, { headers: { Authorization: "Bearer " + cfg.key } });
-    if (response.statusCode !== 200) throw Error("接口听写 HTTP " + response.statusCode + "，请检查中转站额度、模型名称及 input_audio 支持情况");
+    if (response.statusCode !== 200) throw Error(httpFailure("接口听写 · " + cfg.asrModel + " · " + (cfg.asrWire || "base64"), response, cfg));
     let body = response.body.json();
     let text = body.choices && body.choices[0] && body.choices[0].message ? body.choices[0].message.content : null;
     if (typeof text !== "string") throw Error("语音接口没有返回转写文本");
@@ -1031,7 +1297,7 @@ function startRelayListening(testOnly) {
     if (android.os.Build.VERSION.SDK_INT >= 23 && context.checkSelfPermission("android.permission.RECORD_AUDIO") !== 0) { showAnswer("需要麦克风权限", "请点一键设置权限允许麦克风。", false); return; }
     closeEditor(); closePanel(); stopAudio(); stopListening();
     let session = { cancelled: false, finish: false, phase: "recording", recorder: null }, id = recognitionId;
-    let cfg = { url: C.url, key: C.key, asrModel: C.asrModel || "mimo-v2.5-asr" };
+    let cfg = { url: C.url, key: C.key, asrModel: C.asrModel || "mimo-v2.5-asr", asrWire: C.asrWire || "base64" };
     relaySession = session; listening = true; state = "LISTENING"; rms = 0;
     showAnswer("正在听你说", "停顿后自动转写，也可单击小人结束录音。点击气泡外取消，本次录音会发送到已配置的中转站。", false);
     threads.start(function() {
@@ -1046,7 +1312,7 @@ function startRelayListening(testOnly) {
             session.recorder = recorder;
             if (recorder.getState() !== android.media.AudioRecord.STATE_INITIALIZED) throw Error("录音器初始化失败，请检查麦克风占用");
             let buffer = java.lang.reflect.Array.newInstance(java.lang.Byte.TYPE, Math.floor(rate / 5));
-            let vad = Companion.makeVoiceActivity(), startedAt = android.os.SystemClock.elapsedRealtime();
+            let vad = Companion.makeVoiceActivity({ pauseMs: 900 }), startedAt = android.os.SystemClock.elapsedRealtime();
             recorder.startRecording();
             if (recorder.getRecordingState() !== android.media.AudioRecord.RECORDSTATE_RECORDING) throw Error("系统未启动录音，请在面板前台测试");
             while (!session.cancelled && relaySession === session && id === recognitionId) {
@@ -1076,10 +1342,10 @@ function startRelayListening(testOnly) {
                 if (session.cancelled || relaySession !== session || id !== recognitionId) return;
                 relaySession = null; stopListening(); state = "IDLE";
                 if (!text) { showAnswer("没有识别到文字", "本次接口没有返回可用文字，可单击重试。", false); return; }
-                if (testOnly) showAnswer("接口听写成功", text + "\n本次仅测试，没有发送给对话模型。", false);
+                if (testOnly) { ui.asrTestResult.setText("听写成功 · " + cfg.asrModel + "\n" + text); showAnswer("接口听写成功", text + "\n本次仅测试，没有发送给对话模型。", false); }
                 else processUserCommand(text);
             });
-        } catch (e) { main(function() { if (!session.cancelled && relaySession === session && id === recognitionId) { relaySession = null; stopListening(); state = "IDLE"; showAnswer("接口听写未完成", safeError(e), false); } }); }
+        } catch (e) { main(function() { if (!session.cancelled && relaySession === session && id === recognitionId) { relaySession = null; stopListening(); state = "IDLE"; if (testOnly) ui.asrTestResult.setText("听写失败 · " + cfg.asrModel + "\n" + safeError(e)); showAnswer("接口听写未完成", safeError(e), false); } }); }
         finally { if (recorder) { try { recorder.stop(); } catch (e) {} try { recorder.release(); } catch (e) {} } try { pcm.close(); } catch (e) {} }
     });
 }
@@ -1517,7 +1783,7 @@ function beginCompanion() {
         starting = false; started = true;
         if (C.notifications) startNotifications();
         ui.start.setText("保存设置 · 小狐妖已启动");
-        status("小狐妖已就绪。单击听写，双击输入。");
+        status("小狐妖已就绪。单击听写/找回，双击输入，长按历史。");
     }, function(e) {
         starting = false; started = false;
         status("创建失败：" + safeError(e) + "\n" + safeError(e.stack || ""));
@@ -1892,7 +2158,7 @@ function bindRecognitionControls() {
 }
 
 events.on("exit", function() {
-    exiting = true; agentEpoch++; cancelAutoFishImport(); clearDockTimer(); if (tapTimer) clearTimeout(tapTimer); if (speechTimer) clearTimeout(speechTimer);
+    exiting = true; if (channelImportTimer) clearTimeout(channelImportTimer); releaseScreenProjection(); agentEpoch++; cancelAutoFishImport(); clearDockTimer(); if (tapTimer) clearTimeout(tapTimer); if (speechTimer) clearTimeout(speechTimer);
     ui.run(function() {
         stopListening(); stopAudio(); if (tts) { tts.shutdown(); tts = null; }
         if (panel) panel.close(); if (editor) editor.close(); if (orb) orb.close();
@@ -1901,6 +2167,7 @@ events.on("exit", function() {
 });
 bindVoiceControls();
 bindMinimalPanel();
+try { bindApiChannels(); } catch (e) { status("渠道设置未完成：" + safeError(e)); }
 initTts();
 setInterval(function() { try { dailyMemoryTick(); } catch (e) { dailyMemoryRetryAt = Date.now() + 1800000; status("每日整理暂不可用：" + safeError(e)); } }, 60000);
 setInterval(function() {}, 1000);
