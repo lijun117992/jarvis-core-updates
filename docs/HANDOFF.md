@@ -6,9 +6,9 @@
 
 ## 当前状态
 
-当前源码与手机通道已发布 4.0.0-preview13。源码提交 0a94aafb79318711357586b797aa53eff19f73e0；公开 ZIP/启动器和 raw 更新指针已匿名下载校验。ZIP 2120769 字节，SHA-256 a79883d657915a1c30d061f7fdaabf7862bdd31b1f315f059f879f45ee650166。未来状态仍需核对 update.json 与 Release。199 项桌面检查通过，未连接安卓手机或进行真实付费 API 验证。用户 OPPO Find X7 / Android 16 已确认系统识别服务/Activity 缺失；preview12 relay ASR 实际返回 HTTP 400。preview13 增加标准 Base64 最小请求与 Data URL 选择、真实服务端脱敏错误，不可宣称已彻底修复 ASR。
+当前源码 4.0.0-preview14，手机发布状态核对根 update.json 与 Release。222 项桌面检查通过，未连接安卓手机或真实付费 API。用户 OPPO Find X7 / Android 16 系统识别接口缺失，旧 relay ASR400 尚无真实成功证据。本轮修复无关重装权限，不可直接称所有语音故障已解决。
 
-本轮新增多 API 渠道/模型候选导入和切换、独立对话/录音测试结果、按日历史会话、隐藏回复单击找回、气泡简化、快速读屏与按需截图分路、同次共享授权复用、空白/占位输出诊断。测试使用假密钥、合成日志和模拟 UI/网络，不能作为手机验收。
+新增空白分栏渠道表单与固定标签；单击只听写，不弹卡片，长按历史/最近回复找回。跨行 answer JSON 曾被旧解析降为原文，模型自造工具 XML 与行动过程也曾直出；本版阻断此回退。朗读失败旧路径从头打字，Fish 播放中错误会系统重播，本版去除重复并保证显示进度不倒退。
 
 
 ## 源码与维护
@@ -60,3 +60,14 @@ requestBrain 的 chatMessageText 兼容文本数组、单个 tool_calls；空白
 ASR400 真正服务端原因此前被丢掉，本版 httpFailure 只取错误消息/代码，脱敏 Key/长媒体，不把完整响应/录音落日志。requestRelayAsr 仍用 Chat Completions；Base64 模式不带 asr_options，Data URL 模式保留 language zh。停顿 900ms 收尾不等于流式识别，上传/模型推理仍有延迟，不能保证低延迟或成功。
 
 projectionActive 只保留当前宿主会话，正常截图完成不释放；没有定时抓帧。系统撤销导致捕获失败时释放并要求重授权。新增停止共享入口在更多设置，退出释放；未缓存 Android 投屏授权令牌。
+
+
+## preview14 行为与回归入口
+
+单击不再调用 restoreConversation；听写/转写/任务的 showAnswer 进度卡移除，错误/最终回复仍可显示。录音时偷听，relay 转写时思考。旧气泡外取消说明不再适用无气泡录音，双击小人取消并输入。历史菜单首项最近回复，恢复正在播放的全文时锁定可见进度，避免随后回调把全文缩回一半。
+
+CompanionCore.parseModelJson 有界修复 JSON 字符串内控制字符和多次编码，不 eval；normalizeAgentResult 拒绝 XML 自造工具结果/无效结构，不回退原始协议正文。修正请求只放无效标识，不把伪造目录数据重新作为上下文。动作只保留 tool/args；普通正文再经 plainReply/replyBody 清理，文件工具 content 路径不调用这些展示函数。
+
+nativeFailure → finishSpeechAsText 保留全文不重打。Fish fallbackPhrase 每 attempt 仅一次，audioStartedEver 后不换引擎重读。showSpeechProgress 单调，重复 nativeStart 和过期 typeSilently 回调不影响新回复；Fish 未知时长采用保守估算，不能 15 秒固定截断。真实系统/Fish 中断原因仍需电话侧证据，不以模拟通过冒充实机声音验收。
+
+新增 tests/quiet-protocol-audio.cjs，覆盖换行/嵌套协议、伪造工具过程、任务最终输出、分栏标签、播放回调及文字重播。所有用例使用假密钥和合成内容。

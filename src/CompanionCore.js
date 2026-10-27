@@ -336,8 +336,57 @@
         return { value: { schema: 1, preferences: preferences.slice(-100) }, changed: changed };
     }
 
+    function parseModelJson(raw) {
+        var s = String(raw || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+        if (s.length > 200000) throw Error("模型协议内容过长");
+        function parse(value) {
+            try { return JSON.parse(value); } catch (original) {
+                // Some relays return actual newlines inside JSON strings. Escape
+                // controls only within strings; never eval or alter tool values.
+                var quoted = false, escaped = false, fixed = "";
+                for (var i = 0; i < value.length; i++) {
+                    var c = value.charAt(i), n = value.charCodeAt(i);
+                    if (quoted && n < 32) { fixed += "\\u" + ("0000" + n.toString(16)).slice(-4); escaped = false; continue; }
+                    fixed += c;
+                    if (escaped) { escaped = false; continue; }
+                    if (quoted && c === "\\") { escaped = true; continue; }
+                    if (c === '"') quoted = !quoted;
+                }
+                return JSON.parse(fixed);
+            }
+        }
+        for (var round = 0; round < 3; round++) {
+            var value;
+            try { value = parse(s); } catch (e) {
+                var first = s.indexOf("{"), last = s.lastIndexOf("}");
+                if (first < 0 || last <= first) throw Error("模型未返回有效 JSON");
+                value = parse(s.slice(first, last + 1));
+            }
+            if (typeof value === "string" && /^\s*(?:\{|\[|"\{)/.test(value)) { s = value.trim(); continue; }
+            return value;
+        }
+        throw Error("模型协议嵌套过多");
+    }
+    function replyBody(raw) {
+        var value = String(raw || "").trim();
+        for (var round = 0; round < 3; round++) {
+            if (!/^(?:\{|"|```(?:json)?\s*(?:\{|"))/i.test(value)) break;
+            var parsed; try { parsed = parseModelJson(value); } catch (e) { return "模型回复格式异常，请重新提问或切换模型。"; }
+            if (typeof parsed === "string") { value = parsed; continue; }
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                var body = typeof parsed.answer === "string" ? parsed.answer : typeof parsed.spoken_reply === "string" ? parsed.spoken_reply : typeof parsed.reply === "string" ? parsed.reply : null;
+                if (body !== null) { value = body.trim(); continue; }
+                if (parsed.action || parsed.tool_calls || parsed.tool_result) return "内部操作请求已隐藏，请以执行器的最终结果为准。";
+                if (parsed.emotion || parsed.memory_update || parsed.emphasis) return "模型未提供可显示的正文，请重新提问或切换模型。";
+            }
+            break;
+        }
+        if (/<\/?(?:tool_result|result|analysis|think)\b/i.test(value)) return "这条回复包含内部执行过程，已隐藏。请重新发起任务以核对真实结果。";
+        return value;
+    }
+
     function plainReply(raw) {
-        return String(raw || "").replace(/\\([*#_~`>\[\]])/g, "$1")
+        return replyBody(raw).replace(/\\([*#_~`>\[\]])/g, "$1")
             .replace(/^\s*```[^\n]*\n/gm, "").replace(/^\s*```\s*$/gm, "")
             .replace(/\*\*([\s\S]*?)\*\*/g, "$1").replace(/__([^\n]+?)__/g, "$1")
             .replace(/`([^`\n]+)`/g, "$1").replace(/~~([^\n]+?)~~/g, "$1")
@@ -473,5 +522,5 @@
         return { channels: channels, invalid: invalid + Math.max(0, entries.length - 100) };
     }
 
-    return { planChannelImport: planChannelImport, relationshipMarkdown: relationshipMarkdown, wavHeader: wavHeader, relayAsrPayload: relayAsrPayload, makeVoiceActivity: makeVoiceActivity, plainReply: plainReply, localDayKey: localDayKey, dayContext: dayContext, personaWithPreferences: personaWithPreferences, mergeDailyContacts: mergeDailyContacts, makeFileAgent: makeFileAgent, mergeCollaborationMemory: mergeCollaborationMemory, states: names, fps: fps, frame: frame, mirror: mirror, chooseState: chooseState, bubble: bubble, splitSentences: splitSentences, speechBlocks: speechBlocks, progressCount: progressCount, prefix: prefix, fishText: fishText, destination: destination, speed: speed, upsertFishVoice: upsertFishVoice, cloneFishVoices: cloneFishVoices, planFishImport: planFishImport, removeFishVoices: removeFishVoices, renameFishVoices: renameFishVoices };
+    return { parseModelJson: parseModelJson, replyBody: replyBody, planChannelImport: planChannelImport, relationshipMarkdown: relationshipMarkdown, wavHeader: wavHeader, relayAsrPayload: relayAsrPayload, makeVoiceActivity: makeVoiceActivity, plainReply: plainReply, localDayKey: localDayKey, dayContext: dayContext, personaWithPreferences: personaWithPreferences, mergeDailyContacts: mergeDailyContacts, makeFileAgent: makeFileAgent, mergeCollaborationMemory: mergeCollaborationMemory, states: names, fps: fps, frame: frame, mirror: mirror, chooseState: chooseState, bubble: bubble, splitSentences: splitSentences, speechBlocks: speechBlocks, progressCount: progressCount, prefix: prefix, fishText: fishText, destination: destination, speed: speed, upsertFishVoice: upsertFishVoice, cloneFishVoices: cloneFishVoices, planFishImport: planFishImport, removeFishVoices: removeFishVoices, renameFishVoices: renameFishVoices };
 });
