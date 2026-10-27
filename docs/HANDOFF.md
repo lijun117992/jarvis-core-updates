@@ -6,9 +6,11 @@
 
 ## 当前状态
 
-当前源码与手机通道已发布 4.0.0-preview14。源码提交 6cb5eeb209c8422f744540171609f0d5100ed72d；公开 ZIP、启动器附件和 raw 更新指针已匿名校验。ZIP 2123155 字节，SHA-256 dd9e0fe0087d60e08506d6fb82eefcdd0684236b4c4ab95757b0821fcd34ad71。未来状态仍须核对 update.json 与 Release。222 项桌面检查通过，未连接安卓手机或真实付费 API。用户 OPPO Find X7 / Android 16 系统识别接口缺失，旧 relay ASR400 尚无真实成功证据。本轮修复无关重装权限，不可直接称所有语音故障已解决。
+main/手机通道保持 4.0.0-preview14。本分支 fix/notifications-storage-speech-preview15 为 PR #1 草稿候选，包含原生通知桥与接收/清理补修，未合并、未发布。用户已明确选择新增原生配套应用。
 
-新增空白分栏渠道表单与固定标签；单击只听写，不弹卡片，长按历史/最近回复找回。跨行 answer JSON 曾被旧解析降为原文，模型自造工具 XML 与行动过程也曾直出；本版阻断此回退。朗读失败旧路径从头打字，Fish 播放中错误会系统重播，本版去除重复并保证显示进度不倒退。
+245 项 Node 回归、3 项原生主机检查通过；APK 离线编译、签名/权限验证通过，程序 ZIP 构建通过。ADB 无连接设备，因此 URI 持续授权、后台重连、OPPO 强停/锁屏和长语音实际效果未验收。原 ASR400 也没有新的成功证据。
+
+候选代码和验收入口见 NATIVE_NOTIFICATIONS.md。下一步在手机安装原生 APK 与候选 ZIP、开启原生通知使用权、从 Jarvis 更多设置连接并授权。公开更新指针不能提前切换。
 
 
 ## 源码与维护
@@ -71,3 +73,16 @@ CompanionCore.parseModelJson 有界修复 JSON 字符串内控制字符和多次
 nativeFailure → finishSpeechAsText 保留全文不重打。Fish fallbackPhrase 每 attempt 仅一次，audioStartedEver 后不换引擎重读。showSpeechProgress 单调，重复 nativeStart 和过期 typeSilently 回调不影响新回复；Fish 未知时长采用保守估算，不能 15 秒固定截断。真实系统/Fish 中断原因仍需电话侧证据，不以模拟通过冒充实机声音验收。
 
 新增 tests/quiet-protocol-audio.cjs，覆盖换行/嵌套协议、伪造工具过程、任务最终输出、分栏标签、播放回调及文字重播。所有用例使用假密钥和合成内容。
+
+
+## preview15 原生桥交接
+
+android-notifications/ 是 SDK35/min28 原生 Java 配套源码，不依赖 Gradle/第三方运行库；scripts/build_notification_bridge.py 使用现有 SDK/JDK 构建签名 APK。scripts/test_notification_bridge.py 验证真实 APK 签名/权限与主机 SQLite 规则。签名密钥在本机被忽略的私有工作区，未来覆盖升级必须保留，禁止提交。
+
+原生 SQLite 独立于脚本保存 5000 条/7 天通知，读取或写入时过期清理；进程重连补收仍留在通知栏的最近记录，不承诺退出期间已经消失的通知。只读 Provider 不公开导出，PAIR Activity 仅用户点击后向实际调用方授予持久只读 URI；撤销授权不删除通知。BOOT/系统重新绑定不等于绕过 OPPO 后台/强停限制。
+
+AutoJs6 通过 nativeBridgeUriV415 保存 OS 授权地址，noticeQueueV415 单快照含 pending/recent/retry/overflow/cursor/instance。旧的两份队列键可迁移，状态按 ID 同步；超上限保护在途项、失败有限重试。原生游标与入队持久化衔接、原生数据重建按实例重置，满队列不推进。原生模式不再同时接收宿主回调，避免重复；手动断开可回原 AutoJs6 路径。
+
+通知提示通过最终 showAnswer 回调检查语音/输入/卡片，防检查后排队期间新语音启动。通知点击只尝试其真实 PendingIntent，失效后明确回退打开应用，不伪造联系人链接。没有原生语音播放器，本轮不能宣称语音中断根因已修。
+
+新增 notifications-cleanup.cjs 模拟重启/磁盘失败/回压/URI、以及仅内存文件树的清理和链接攻击，无真实主机删除。NATIVE_NOTIFICATIONS.md 有手机验收清单与源码/构建/发布边界。

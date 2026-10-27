@@ -1,7 +1,7 @@
 const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert/strict'),parser=require('@babel/parser'),core=require('../src/CompanionCore.js');
 const source=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8'),tree=parser.parse(source,{plugins:['jsx']});let count=0;
 function test(name,f){f();count++;console.log('PASS '+name)}
-function load(names,env={}){const b=vm.createContext({Companion:core,...env});vm.runInContext(names.map(name=>{const n=tree.program.body.find(n=>n.type==='FunctionDeclaration'&&n.id.name===name);assert(n,name);return source.slice(n.start,n.end)}).join('\n'),b);return b;}
+function load(names,env={}){const b=vm.createContext({Companion:core,nativeBridgeUri:'',nativeBridgeConnected:false,nativeBridgeCursor:0,nativeBridgeInstance:'',...env});vm.runInContext(names.map(name=>{const n=tree.program.body.find(n=>n.type==='FunctionDeclaration'&&n.id.name===name);assert(n,name);return source.slice(n.start,n.end)}).join('\n'),b);return b;}
 test('literal newlines inside the answer string parse as text rather than leaking the JSON envelope',()=>{const raw='{"answer":"第一段。\n\n第二段。","emotion":"IDLE","emphasis":[],"memory_update":{"preferences":[]}}';const b=load(['normalizeAgentResult','extractJsonFromText']);const result=b.normalizeAgentResult(raw);assert.equal(result.answer,'第一段。\n\n第二段。');assert.equal(result.emotion,'IDLE');assert.equal(core.plainReply(raw),'第一段。\n\n第二段。');});
 test('double-encoded and nested answer envelopes are unwrapped for display and speech',()=>{const value={answer:'**这是正文**\n继续',emotion:'IDLE'};const twice=JSON.stringify(JSON.stringify(value));const b=load(['normalizeAgentResult','extractJsonFromText']);assert.equal(b.normalizeAgentResult(twice).answer,'这是正文\n继续');assert.equal(core.plainReply(JSON.stringify({answer:JSON.stringify(value)})),'这是正文\n继续');});
 test('JSON repair preserves escaped paths, quoted strings and literal braces in valid tool arguments',()=>{const value={action:{tool:'fs.write_text',args:{path:'notes.json',content:'{"answer":"literal"}\nC:\\work\\file.txt\t🦊'}}};assert.deepEqual(core.parseModelJson(JSON.stringify(value)),value);});
@@ -27,24 +27,24 @@ test('unknown Fish duration uses a conservative speech watchdog instead of cutti
 
 test('incoming notifications are queued and recorded even when the agent is busy',()=>{
  let saved={},item={getPackageName:()=> 'com.tencent.mm',getTitle:()=> '朋友',getText:()=> '你好'};
- const b=load(['enqueueNotification','drainNotificationQueue','saveNoticeQueue'],{
-    C:{notifications:true,apps:['com.tencent.mm'],key:'fake'},noticeRecent:[],noticePending:[],
+ const b=load(['enqueueNotification','saveNoticeQueue'],{
+    withNoticeLock:f=>f(),safeDayText:String,java:{util:{UUID:{randomUUID:()=> 'fake-id'}}},noticeInFlightId:'',noticeOverflowCount:0,drainNotificationQueue:()=>{},C:{notifications:true,apps:['com.tencent.mm'],key:'fake'},noticeRecent:[],noticePending:[],
     liveNoticeRefs:{},noticeBusy:false,busy:true,listening:false,exiting:false,
     noticeRetryAfter:0,store:{put:(k,v)=>saved[k]=JSON.parse(JSON.stringify(v))},
     threads:{start:()=>{throw Error('must not analyze while busy')}}
  });
  b.enqueueNotification(item);
  assert.equal(b.noticePending.length,1);
- assert.equal(saved.noticePendingV415.length,1);
- assert.equal(saved.noticeRecentV415[0].sender,'朋友');
+ assert.equal(saved.noticeQueueV415.pending.length,1);
+ assert.equal(saved.noticeQueueV415.recent[0].sender,'朋友');
 });
 test('notification queue does not interrupt an active spoken answer',()=>{
  let started=0;
- const b=load(['drainNotificationQueue'],{C:{notifications:true,key:'fake'},noticePending:[{id:'1'}],noticeBusy:false,busy:false,listening:false,speechSession:{serial:1},exiting:false,noticeRetryAfter:0,threads:{start:()=>started++}});
+ const b=load(['drainNotificationQueue'],{withNoticeLock:f=>f(),noticeQueueDirty:false,presentPendingNotice:()=>{},C:{notifications:true,key:'fake'},noticePending:[{id:'1'}],noticeBusy:false,busy:false,listening:false,speechSession:{serial:1},exiting:false,noticeRetryAfter:0,threads:{start:()=>started++}});
  b.drainNotificationQueue(); assert.equal(started,0); assert.equal(b.noticePending.length,1);
 });
 test('recent notifications are explicitly scoped to real system receipts',()=>{
- const b=load(['recentNotifications'],{noticeRecent:[{id:'1',package:'com.tencent.mm',sender:'朋友',text:'已收到',at:1,status:'已分析'}],noticePending:[],noticeStarted:true});
+ const b=load(['recentNotifications'],{withNoticeLock:f=>f(),noticeOverflowCount:0,noticeRecent:[{id:'1',package:'com.tencent.mm',sender:'朋友',text:'已收到',at:1,status:'已分析'}],noticePending:[],noticeStarted:true});
  const output=b.recentNotifications({limit:10});
  assert.equal(output.notifications.length,1);
  assert.equal(output.notifications[0].text,'已收到');
@@ -61,7 +61,7 @@ test('cleanup has guard for current installed release and never targets user Dow
  let node=tree.program.body.find(n=>n.type==='FunctionDeclaration'&&n.id.name==='cleanupJarvisUpdateFiles');
  assert(node);
  let code=source.slice(node.start,node.end);
- assert(code.includes('new java.io.File(APP_DIR).getCanonicalPath() !== active'));
+ assert(code.includes('String(new File(APP_DIR).getCanonicalPath()) !== active'));
  assert(code.includes('stateInfo.previous'));
  assert(code.includes('getCanonicalPath()'));
  assert(!code.includes('/sdcard/Download/'));
