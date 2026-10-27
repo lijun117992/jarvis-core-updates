@@ -2,10 +2,10 @@
   "project": "Jarvis-Core",
   "schema": 1,
   "channel": "preview",
-  "version": "4.0.0-preview8",
+  "version": "4.0.0-preview9",
   "minLauncher": 2,
-  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview8/Jarvis-Core-v4.0.0-preview8.zip",
-  "bytes": 2088648,
-  "sha256": "17a34f9e022b5956942be08406880676e14efe3eb0ed9ea8e29e58209a4a05cd",
-  "notes": "淡蓝极简主面板；系统/Fish 按选择展开，系统引擎跟随手机；连接、批量音色、听写诊断按需展开；通知默认分析，权限合并入口。"
+  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview9/Jarvis-Core-v4.0.0-preview9.zip",
+  "bytes": 2089164,
+  "sha256": "2ddfc622720325b4a45b5893823875ecd32a50695a26630b9209f31e19471ddb",
+  "notes": "简化音色导入：32位模型ID可连续粘贴或空格/换行分隔；支持名字+ID自动分组、跨行配对，保留去重、预览与撤销。"
 }
