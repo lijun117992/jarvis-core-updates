@@ -90,6 +90,7 @@ AutoJs6 音量加停止脚本是宿主设置，用户需自行关闭，脚本不
 
 ## preview11 最新交接补充
 
+- preview11 已公开发布，ZIP/启动器匿名校验通过，根更新清单已切到 preview11；桌面 91 项检查通过，真机验收与下述语音故障边界保持不变。
 - 设备已确认：OPPO Find X7，Android 16。用户验证兼容语音页面抛 ActivityNotFoundException（RECOGNIZE_SPEECH 无处理 Activity），不能继续要求其反复测试该入口；这不等于已证明后台 RecognitionService 不存在。
 - AOSP SpeechRecognizerImpl 在默认组件为空时可直接返回 ERROR_CLIENT(5)：https://github.com/aosp-mirror/platform_frameworks_base/blob/master/core/java/android/speech/SpeechRecognizerImpl.java#L484 。本次保留已配置组件，空/无效组件时枚举已启用、导出且带识别绑定权限的服务；唯一候选时显式调用，零/多个时明确报实际情况，不擅自选多个中的一个。
 - 应用版本标识 preview11；用户重复旧版长错误文本不能作为此分支验收。新路径需手机确认，不能称语音已修复。未新增录音上传或付费 ASR。
