@@ -2,10 +2,10 @@
   "project": "Jarvis-Core",
   "schema": 1,
   "channel": "preview",
-  "version": "4.0.0-preview9",
+  "version": "4.0.0-preview10",
   "minLauncher": 2,
-  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview9/Jarvis-Core-v4.0.0-preview9.zip",
-  "bytes": 2089164,
-  "sha256": "2ddfc622720325b4a45b5893823875ecd32a50695a26630b9209f31e19471ddb",
-  "notes": "简化音色导入：32位模型ID可连续粘贴或空格/换行分隔；支持名字+ID自动分组、跨行配对，保留去重、预览与撤销。"
+  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview10/Jarvis-Core-v4.0.0-preview10.zip",
+  "bytes": 2089517,
+  "sha256": "60235435a1b470e3d27b1c0ae4d7ae6c69be557c037cbbdebdbf574ad025f380",
+  "notes": "点击输入框或头顶气泡外部自动收起，保留草稿/回复；听写中外部点击取消识别，防止迟到错误重弹。日常错误5提示精简，完整诊断留在前台测试，识别根因仍未确认。"
 }
