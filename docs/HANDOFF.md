@@ -83,6 +83,7 @@ AutoJs6 音量加停止脚本是宿主设置，用户需自行关闭，脚本不
 
 ## preview10 外部点击收起实现与验收
 
+- preview10 已发布：程序包及启动器匿名校验通过，手机清单指向 preview10。发布后 raw CDN 曾短暂返回 preview9（300 秒缓存），缓存刷新后两个查询地址均与本地清单完全一致；未覆盖任何旧附件。
 - 仅给卡片原生根视图添加 NOT_TOUCH_MODAL / WATCH_OUTSIDE_TOUCH，接收 ACTION_OUTSIDE；不增加全屏透明遮罩，不申请全局触摸监听。参考 [AutoJs6 RawWindow 源码](https://github.com/SuperMonster003/AutoJs6/blob/master/app/src/main/java/org/autojs/autojs/core/floaty/RawWindow.kt) 与 [Android MotionEvent](https://developer.android.com/reference/android/view/MotionEvent#ACTION_OUTSIDE)。
 - 输入框隐藏保存草稿并收键盘，回复隐藏保留全文和朗读；长按小人找回回复、双击恢复草稿。监听失败保留手动“收起”，显示状态说明。
 - 新增 8 项模拟检查，共 78 项通过；真机仍需确认：框外点击、下层应用收到点击、键盘按键不误收起、拖动/按钮不受影响、隐藏后迟到识别不重弹。
