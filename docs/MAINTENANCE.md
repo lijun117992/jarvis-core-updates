@@ -32,7 +32,7 @@ python scripts/package.py
 
 打包仅取 src/ 的三项文件，写 dist/ 下 ZIP、manifest.json 和 update.json，不上传、不读手机配置、不改根目录已发布指针。源版本从 version.json 读取。程序改动升新版本，并同步 package.json 与 CHANGELOG；不要把旧 tag 附件覆盖成新代码。
 
-**当前 src 与 preview6 原包内文件字节一致。但新打包器固定 ZIP 元数据，重打 preview6 的 ZIP 整体 SHA 会变。不得覆盖旧附件；未来改动必须升版。** 原文件基线在 releases/4.0.0-preview6-source.json。
+**最初接入源码时已验证 preview6 文件字节与原包一致；后续源改动按新版本追踪，不能再与旧基线混同。新打包器固定 ZIP 元数据，重打旧 preview6 的 ZIP 整体 SHA 会变，不得覆盖旧附件。** 原始历史基线在 releases/4.0.0-preview6-source.json；后续版本看对应包内 manifest 和源码提交。
 
 ## 发布
 
