@@ -55,7 +55,7 @@ test('cancelled compatibility input never creates a command',()=>{let sent=0;con
 test('input bubble uses opaque light palette and matches reply width',()=>{
   const n=parser.parse(app,{plugins:['jsx']}).program.body.find(n=>n.type==='FunctionDeclaration'&&n.id.name==='openEditor');const s=app.slice(n.start,n.end);
   assert(s.includes('#FFEDF4FF'));assert(s.includes('#172C48'));assert(s.includes('Math.min(dp(284)'));assert(s.includes('Companion.bubble('));
-  assert(app.includes('Theme_Material_Light'));assert(app.includes('ui.testRecognition.on("click", function() { startListening(true); })'));
+  assert(app.includes('Theme_Material_Light'));assert(app.includes('ui.testRecognition.on("click", function() { runConfigured(function() { startListening(true); }); })'));
 });
 test('launcher finds WeChat-saved packages and compares timestamps with top-level files',()=>{
   const wx='/sdcard/Download/WeiXin/',top='/sdcard/Download/';let includeTop=false;
