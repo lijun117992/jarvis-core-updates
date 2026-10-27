@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-当前源码 4.0.0-preview13，发布状态核对 update.json 与 Release。199 项桌面检查通过，未连接安卓手机或进行真实付费 API 验证。用户 OPPO Find X7 / Android 16 已确认系统识别服务/Activity 缺失；preview12 relay ASR 实际返回 HTTP 400。preview13 增加标准 Base64 最小请求与 Data URL 选择、真实服务端脱敏错误，不可宣称已彻底修复 ASR。
+当前源码与手机通道已发布 4.0.0-preview13。源码提交 0a94aafb79318711357586b797aa53eff19f73e0；公开 ZIP/启动器和 raw 更新指针已匿名下载校验。ZIP 2120769 字节，SHA-256 a79883d657915a1c30d061f7fdaabf7862bdd31b1f315f059f879f45ee650166。未来状态仍需核对 update.json 与 Release。199 项桌面检查通过，未连接安卓手机或进行真实付费 API 验证。用户 OPPO Find X7 / Android 16 已确认系统识别服务/Activity 缺失；preview12 relay ASR 实际返回 HTTP 400。preview13 增加标准 Base64 最小请求与 Data URL 选择、真实服务端脱敏错误，不可宣称已彻底修复 ASR。
 
 本轮新增多 API 渠道/模型候选导入和切换、独立对话/录音测试结果、按日历史会话、隐藏回复单击找回、气泡简化、快速读屏与按需截图分路、同次共享授权复用、空白/占位输出诊断。测试使用假密钥、合成日志和模拟 UI/网络，不能作为手机验收。
 
