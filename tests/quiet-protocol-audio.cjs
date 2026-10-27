@@ -24,4 +24,43 @@ test('previously stored quoted JSON replies unwrap on reopen without exposing en
 test('reopening a full reply while it is spoken prevents later callbacks from rewinding the visible text',()=>{const b=load(['restoreConversation'],{savedConversation:{title:'Jarvis',text:'这是完整回复'},speechSession:{text:'这是完整回复',visibleCount:2},showAnswer:()=>{}});b.restoreConversation();assert.equal(b.speechSession.visibleCount,'这是完整回复'.length);});
 test('history recent-reply entry restores in one selection without reading or changing another day',()=>{let labels,restored=0;const b=load(['openConversationHistory'],{busy:false,listening:false,C:{memory:'/memory/'},taskDayKey:()=> '2026-10-27',conversationDay:()=> '2026-10-27',savedConversation:{text:'最近'},files:{exists:()=>false},main:f=>f(),threads:{start:f=>f()},restoreConversation:()=>restored++,dialogs:{select:(title,items,callback)=>{labels=items;callback(0)}},status:()=>{},safeError:String});b.openConversationHistory();assert.equal(labels[0],'最近回复');assert.equal(restored,1);});
 test('unknown Fish duration uses a conservative speech watchdog instead of cutting off after fifteen seconds',()=>{const method=tree.program.body.find(n=>n.type==='FunctionDeclaration'&&n.id.name==='fishPhrase');let callback;function walk(n){if(!n||typeof n!=='object')return;if(n.type==='ObjectProperty'&&n.key.name==='onPrepared')callback=n.value;for(const v of Object.values(n))if(Array.isArray(v))v.forEach(walk);else if(v&&typeof v==='object')walk(v)}walk(method);assert(callback);let timeout,started=0;const player={start:()=>started++,getDuration:()=>0};const b=vm.createContext({Companion:core,main:f=>f(),phrasePlayer:player,player,speechSession:{serial:1,phraseStarted:false},serial:1,attempt:1,phrase:'长回复。'.repeat(100),settings:{speechRate:1},style:{mood:'IDLE'},phraseWatchdog:null,clearBubbleAnimation:()=>{},clearTimeout:()=>{},setTimeout:(f,ms)=>(timeout=ms,1),setInterval:()=>1,status:()=>{},panel:null,lastTitle:'Jarvis',fallbackPhrase:()=>{throw Error('unexpected fallback')}});vm.runInContext('var prepared='+source.slice(callback.start,callback.end),b);b.prepared();assert.equal(started,1);assert(timeout>=35000);assert(timeout>15000);});
+
+test('incoming notifications are queued and recorded even when the agent is busy',()=>{
+ let saved={},item={getPackageName:()=> 'com.tencent.mm',getTitle:()=> '朋友',getText:()=> '你好'};
+ const b=load(['enqueueNotification','drainNotificationQueue','saveNoticeQueue'],{
+    C:{notifications:true,apps:['com.tencent.mm'],key:'fake'},noticeRecent:[],noticePending:[],
+    liveNoticeRefs:{},noticeBusy:false,busy:true,listening:false,exiting:false,
+    noticeRetryAfter:0,store:{put:(k,v)=>saved[k]=JSON.parse(JSON.stringify(v))},
+    threads:{start:()=>{throw Error('must not analyze while busy')}}
+ });
+ b.enqueueNotification(item);
+ assert.equal(b.noticePending.length,1);
+ assert.equal(saved.noticePendingV415.length,1);
+ assert.equal(saved.noticeRecentV415[0].sender,'朋友');
+});
+test('recent notifications are explicitly scoped to real system receipts',()=>{
+ const b=load(['recentNotifications'],{noticeRecent:[{id:'1',package:'com.tencent.mm',sender:'朋友',text:'已收到',at:1,status:'已分析'}],noticePending:[],noticeStarted:true});
+ const output=b.recentNotifications({limit:10});
+ assert.equal(output.notifications.length,1);
+ assert.equal(output.notifications[0].text,'已收到');
+ assert.match(output.note,/系统通知/);
+});
+test('unavailable voice output reveals the entire reply instead of simulating new streaming',()=>{
+ let rendered=[],typed=0;
+ const b=load(['startPresentation'],{stopAudio:()=>{},syncSerial:1,C:{autoSpeak:false},setBubbleText:s=>rendered.push(s),typeSilently:()=>typed++});
+ b.startPresentation('第一段，第二段全部保留。',false,null,false);
+ assert.deepEqual(rendered,['第一段，第二段全部保留。']);
+ assert.equal(typed,0);
+});
+test('cleanup has guard for current installed release and never targets user Downloads or Memory',()=>{
+ let node=tree.program.body.find(n=>n.type==='FunctionDeclaration'&&n.id.name==='cleanupJarvisUpdateFiles');
+ assert(node);
+ let code=source.slice(node.start,node.end);
+ assert(code.includes('new java.io.File(APP_DIR).getCanonicalPath() !== active'));
+ assert(code.includes('stateInfo.previous'));
+ assert(code.includes('getCanonicalPath()'));
+ assert(!code.includes('/sdcard/Download/'));
+ assert(!code.includes('/Memory/'));
+});
+
 console.log(JSON.stringify({quietProtocolAudioTests:count,passed:count,android:'Mocked speech callbacks only; native voice interruptions still require phone validation'}));
