@@ -1,0 +1,11 @@
+{
+  "project": "Jarvis-Core",
+  "schema": 1,
+  "channel": "preview",
+  "version": "4.0.0-preview6",
+  "minLauncher": 2,
+  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview6/Jarvis-Core-v4.0.0-preview6.zip",
+  "bytes": 2084231,
+  "sha256": "e06295bc7ead3dc85404d9c2d10afa700e6c28ab3af9b8d3ebf9abf1264c04d4",
+  "notes": "保留整段稳定朗读、自动回答播报、多候选 Fish 音色。新增设备端识别优先及系统语音页面测试入口；识别仍需真机验证。"
+}
