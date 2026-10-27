@@ -44,7 +44,7 @@ test('device recognizer is preferred only when supported, explicit direct mode p
  const calls=[];
  const recognizer={isOnDeviceRecognitionAvailable:()=>true,createOnDeviceSpeechRecognizer:()=>{calls.push('local');return{}},createSpeechRecognizer:()=>{calls.push('default');return{}}};
  const androidStub={os:{Build:{VERSION:{SDK_INT:31}}},speech:{SpeechRecognizer:recognizer}};
- const b=load(app,['onDeviceRecognitionAvailable','createRecognizer'],{recognitionMode:'auto',activity:{},status:()=>{},android:androidStub});
+ const b=load(app,['onDeviceRecognitionAvailable','createRecognizer'],{recognitionMode:'auto',activity:{},status:()=>{},resolveRecognitionComponent:()=>null,android:androidStub});
  b.createRecognizer();b.recognitionMode='direct';b.createRecognizer();assert.deepEqual(calls,['local','default']);
 });
 test('compatibility test returns text without invoking the model',()=>{
@@ -90,7 +90,7 @@ test('saved Fish preset persists ID, can be selected after reload, and leaves pr
   store:{put:(k,v)=>saved[k]=JSON.parse(JSON.stringify(v))},renderFishVoiceList:v=>rendered=v,status:()=>{},safeError:String});
  b.saveFishVoicePreset();id='voice-2';name='温柔音';b.saveFishVoicePreset();assert.equal(saved.fishVoicePresetsV45.length,2);assert.equal(rendered,'voice-2');
  b.fishVoicePresets=JSON.parse(JSON.stringify(saved.fishVoicePresetsV45));b.selectFishVoice(1);
- assert.equal(id,'voice-1');assert.equal(name,'少年音');assert.equal(saved.voiceId,'voice-1');assert.equal(b.C.provider,'system');
+ assert.equal(id,'voice-2');assert.equal(name,'温柔音');assert.equal(b.C.voice,'voice-1');assert.equal(saved.voiceId,'voice-1');assert.equal(b.C.provider,'system');
 });
 test('speed is natural by default, mood changes are small, bounds enforced',()=>{assert.equal(core.speed(undefined,'IDLE'),1);assert.equal(core.speed(1,'URGENT'),1.05);assert.equal(core.speed(1,'CRYING'),.95);assert.equal(core.speed(99,'URGENT'),1.3);assert.equal(core.speed(.1,'CRYING'),.8)});
 test('system voice permits 0.5–2.0 rate without changing selected voice',()=>{assert.equal(core.speed(.5,'IDLE','system'),.5);assert.equal(core.speed(2,'IDLE','system'),2);for(const name of['systemSpeak','nativePhrase']){const n=parser.parse(app,{plugins:['jsx']}).program.body.find(n=>n.type==='FunctionDeclaration'&&n.id.name===name);assert(app.slice(n.start,n.end).includes('configureSystemVoice('))}assert(app.includes('tts.setPitch(settings.pitch || 1)'));});

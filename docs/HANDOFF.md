@@ -6,7 +6,7 @@
 
 ## 当前源码与原始发布基线
 
-源码已升 preview10：输入框/气泡点击外部收起，保留草稿和全文，听写取消后忽略迟到回调。日常错误 5 只显示简短提示，前台测试保留详细诊断；未修复/未确定识别根因。保留 32 位音色 ID 自动分组、原导入格式与以下布局：淡蓝极简主面板，系统/Fish 互斥展开，连接/音色管理/诊断折叠；通知按用户明确要求默认分析，权限合并入口，仍需逐项系统授权。系统音色改在手机文字转语音设置选择，返回自动重连；应用保留语速/音高调节。原批量音色功能见 [音色管理](VOICE_PRESETS.md)。合计 78 项桌面检查，原生 UI 与设置往返仍需验收。手机实际更新版本以根 update.json 和对应 Release 为准。下列 preview6 大小/哈希是原始历史基线，不能当作当前哈希。
+源码已升 preview11：音色新增/管理分开、粘贴自动导入，详情见 VOICE_PRESETS.md；默认识别组件为空时仅在探测到唯一可调用服务时显式连接。保留此前功能：输入框/气泡点击外部收起，保留草稿和全文，听写取消后忽略迟到回调。日常错误 5 只显示简短提示，前台测试保留详细诊断；未修复/未确定识别根因。保留 32 位音色 ID 自动分组、原导入格式与以下布局：淡蓝极简主面板，系统/Fish 互斥展开，连接/音色管理/诊断折叠；通知按用户明确要求默认分析，权限合并入口，仍需逐项系统授权。系统音色改在手机文字转语音设置选择，返回自动重连；应用保留语速/音高调节。原批量音色功能见 [音色管理](VOICE_PRESETS.md)。合计 91 项桌面检查，原生 UI 与设置往返仍需验收。手机实际更新版本以根 update.json 和对应 Release 为准。下列 preview6 大小/哈希是原始历史基线，不能当作当前哈希。
 
 - [仓库](https://github.com/lijun117992/jarvis-core-updates)：公开源码与更新通道，用户已同意公开通用程序和蓝狐素材。
 - [手机版本 4.0.0-preview6](https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview6)，启动器 2.0；固定指针为根目录 update.json。
@@ -87,3 +87,11 @@ AutoJs6 音量加停止脚本是宿主设置，用户需自行关闭，脚本不
 - 仅给卡片原生根视图添加 NOT_TOUCH_MODAL / WATCH_OUTSIDE_TOUCH，接收 ACTION_OUTSIDE；不增加全屏透明遮罩，不申请全局触摸监听。参考 [AutoJs6 RawWindow 源码](https://github.com/SuperMonster003/AutoJs6/blob/master/app/src/main/java/org/autojs/autojs/core/floaty/RawWindow.kt) 与 [Android MotionEvent](https://developer.android.com/reference/android/view/MotionEvent#ACTION_OUTSIDE)。
 - 输入框隐藏保存草稿并收键盘，回复隐藏保留全文和朗读；长按小人找回回复、双击恢复草稿。监听失败保留手动“收起”，显示状态说明。
 - 新增 8 项模拟检查，共 78 项通过；真机仍需确认：框外点击、下层应用收到点击、键盘按键不误收起、拖动/按钮不受影响、隐藏后迟到识别不重弹。
+
+## preview11 最新交接补充
+
+- 设备已确认：OPPO Find X7，Android 16。用户验证兼容语音页面抛 ActivityNotFoundException（RECOGNIZE_SPEECH 无处理 Activity），不能继续要求其反复测试该入口；这不等于已证明后台 RecognitionService 不存在。
+- AOSP SpeechRecognizerImpl 在默认组件为空时可直接返回 ERROR_CLIENT(5)：https://github.com/aosp-mirror/platform_frameworks_base/blob/master/core/java/android/speech/SpeechRecognizerImpl.java#L484 。本次保留已配置组件，空/无效组件时枚举已启用、导出且带识别绑定权限的服务；唯一候选时显式调用，零/多个时明确报实际情况，不擅自选多个中的一个。
+- 应用版本标识 preview11；用户重复旧版长错误文本不能作为此分支验收。新路径需手机确认，不能称语音已修复。未新增录音上传或付费 ASR。
+- 音色表单不再兼任当前播放 ID：C.voice 是当前选择，名称/ID 输入是新增草稿，点新增清空草稿不会清掉已选声音。自动导入仅接受完整 32 位字母数字 ID，等待输入停顿 650ms，只追加、去重，不改已有名称；切换页面/来源/退出时取消待处理导入。
+- 管理区仅列表/全选切换/删除/改名/可用时撤销，单选改名直接填写名称，多选用前缀编号。Fish Key 移入连接设置。共 91 项桌面检查；自动粘贴和原生改名对话框待真机。
