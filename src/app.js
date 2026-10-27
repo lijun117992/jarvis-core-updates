@@ -7,7 +7,7 @@ const Companion = require(files.join(APP_DIR, "CompanionCore.js"));
  */
 const C = {
     url: "", key: "", model: "", fishKey: "", voice: "",
-    memory: "/sdcard/Jarvis/Memory/", autoSpeak: true, notifications: false,
+    memory: "/sdcard/Jarvis/Memory/", autoSpeak: true, notifications: true,
     apps: ["com.tencent.mm", "com.tencent.mobileqq", "com.alibaba.android.rimet"]
 };
 const store = storages.create("jarvis_config_v2");
@@ -29,54 +29,86 @@ let audioEpoch = 0, fishRetryAt = 0, audioFiles = [];
 let orbSize = dp(96), screenW = device.width, screenH = device.height;
 
 ui.layout(
-    <scroll bg="#0C1018">
-        <vertical padding="22">
-            <text text="JARVIS / BLUE FOX 04 · preview7" textColor="#B7EBDF" textSize="12sp" marginTop="12"/>
-            <text text="你的小狐妖，在线。" textColor="#F1F4F8" textSize="26sp" marginTop="10"/>
-            <text text="单击听写 · 双击输入 · 长按找回回复" textColor="#8F9BAF" textSize="13sp" marginBottom="20"/>
-            <text text="大脑连接" textColor="#B7EBDF" textSize="16sp"/>
-            <input id="url" hint="中转站地址 / 完整 chat/completions 地址" textColor="#EDF1F7" textColorHint="#778397" textSize="14sp"/>
-            <input id="key" hint="API Key" inputType="textPassword" textColor="#EDF1F7" textColorHint="#778397" textSize="14sp"/>
-            <input id="model" hint="模型名称，如 deepseek-chat" textColor="#EDF1F7" textColorHint="#778397" textSize="14sp"/>
-            <button id="testApi" text="测试大脑连接" textColor="#C5F3E7" bg="#20362F"/>
-            <text text="声音" textColor="#B7EBDF" textSize="16sp" marginTop="18"/>
-            <text text="默认系统中文朗读。Fish 失败会退回系统语音。" textColor="#8F9BAF" textSize="12sp"/>
-            <input id="fishKey" hint="Fish API Key（选填）" inputType="textPassword" textColor="#EDF1F7" textColorHint="#778397" textSize="14sp"/>
-            <text text="已保存的 Fish 音色（只用于 Fish 模式）" textColor="#8F9BAF" textSize="12sp"/><spinner id="fishVoiceList" entries="手动输入 / 新增音色"/><input id="fishVoiceName" hint="音色名称，如：清朗男声" textColor="#EDF1F7" textColorHint="#778397" textSize="14sp"/><input id="voice" hint="Fish 音色 ID（选填）" textColor="#EDF1F7" textColorHint="#778397" textSize="14sp"/>
-            <button id="saveFishVoice" text="保存到候选音色列表" textSize="12sp"/>
-            <button id="manageFishVoices" text="批量导入 / 管理音色" textSize="12sp"/>
-            <vertical id="fishVoiceManager" visibility="gone" padding="10" bg="#182435">
-                <text text="粘贴名单：每行 ID 或 名称,ID，也支持 JSON 数组。同批重复保留首条。" textColor="#CAD7E8" textSize="12sp"/>
-                <input id="voiceBatchInput" h="110" inputType="textMultiLine" gravity="top" hint="粘贴音色名单…" textColor="#F1F6FF" textColorHint="#9BACBF" textSize="14sp"/>
-                <checkbox id="voiceImportOverwrite" text="同 ID 时更新已有名称（默认保留原名称）" textColor="#D5DDE8"/>
+    <scroll bg="#F4F8FD">
+        <vertical padding="24 28">
+            <text text="JARVIS" textColor="#6486AC" textSize="12sp"/>
+            <text text="你的小狐妖" textColor="#18324F" textSize="29sp" marginTop="8"/>
+            <text text="单击听写 · 双击输入 · 长按找回回复" textColor="#657B91" textSize="12sp" marginTop="6" marginBottom="24"/>
+            <button id="start" text="召唤小狐妖" h="54" textSize="16sp"/>
+            <text id="status" text="准备好了，随时陪你。" textColor="#657B91" textSize="12sp" marginTop="10" marginBottom="24"/>
+            <vertical id="soundCard" padding="18" marginBottom="14">
+                <text text="声音" textColor="#18324F" textSize="18sp"/>
+                <text id="voiceSummary" text="选择一种声音，展开设置" textColor="#657B91" textSize="12sp" marginTop="4" marginBottom="10"/>
+                <horizontal>
+                    <button id="chooseSystem" text="系统音色" layout_weight="1" textSize="14sp"/>
+                    <button id="chooseFish" text="Fish 音色" layout_weight="1" textSize="14sp" marginLeft="8"/>
+                </horizontal>
+                <vertical id="systemPane" visibility="gone" marginTop="12">
+                    <text text="使用手机当前文字转语音引擎和音色" textColor="#657B91" textSize="12sp"/>
+                    <horizontal><button id="ttsSettings" text="系统语音设置" layout_weight="1" textSize="12sp"/><button id="testTts" text="试听" layout_weight="1" textSize="12sp"/></horizontal>
+                </vertical>
+                <vertical id="fishPane" visibility="gone" marginTop="12">
+                    <spinner id="fishVoiceList" entries="选择已保存音色"/>
+                    <horizontal><button id="editFishVoice" text="新增 / 管理" layout_weight="1" textSize="12sp"/><button id="testFish" text="试听" layout_weight="1" textSize="12sp"/></horizontal>
+                    <vertical id="fishEditPane" visibility="gone" marginTop="8">
+                        <input id="fishKey" hint="Fish API Key" inputType="textPassword"/>
+                        <input id="fishVoiceName" hint="音色名称"/>
+                        <input id="voice" hint="音色 ID"/>
+                        <button id="saveFishVoice" text="保存音色" textSize="12sp"/>
+                        <button id="manageFishVoices" text="批量管理" textSize="12sp"/>
+            <vertical id="fishVoiceManager" visibility="gone" padding="10" bg="#EFF5FC">
+                <text text="粘贴名单：每行 ID 或 名称,ID，也支持 JSON 数组。同批重复保留首条。" textColor="#657B91" textSize="12sp"/>
+                <input id="voiceBatchInput" h="110" inputType="textMultiLine" gravity="top" hint="粘贴音色名单…" textColor="#18324F" textColorHint="#71879D" textSize="14sp"/>
+                <checkbox id="voiceImportOverwrite" text="同 ID 时更新已有名称（默认保留原名称）" textColor="#18324F"/>
                 <horizontal><button id="previewVoiceImport" text="预览导入" layout_weight="1" textSize="12sp"/><button id="applyVoiceImport" text="导入有效条目" enabled="false" layout_weight="1" textSize="12sp"/></horizontal>
-                <text id="voiceImportReport" text="预览后再确认，不会自动覆盖名单。" textColor="#B7CBE5" textSize="12sp"/>
+                <text id="voiceImportReport" text="预览后再确认，不会自动覆盖名单。" textColor="#657B91" textSize="12sp"/>
                 <horizontal><button id="selectAllVoices" text="全选" layout_weight="1" textSize="12sp"/><button id="clearVoiceSelection" text="取消全选" layout_weight="1" textSize="12sp"/></horizontal>
-                <text id="voiceSelectionInfo" text="尚未选择" textColor="#D5DDE8" textSize="12sp"/>
+                <text id="voiceSelectionInfo" text="尚未选择" textColor="#18324F" textSize="12sp"/>
                 <scroll h="220"><vertical id="voiceManagerRows"/></scroll>
                 <button id="deleteSelectedVoices" text="删除所选（先确认）" textSize="12sp"/>
-                <input id="voiceRenamePrefix" hint="批量命名前缀，如：收藏 → 收藏 1、收藏 2" textColor="#F1F6FF" textColorHint="#9BACBF" textSize="13sp"/>
+                <input id="voiceRenamePrefix" hint="批量命名前缀，如：收藏 → 收藏 1、收藏 2" textColor="#18324F" textColorHint="#71879D" textSize="13sp"/>
                 <button id="renameSelectedVoices" text="按前缀编号重命名所选" textSize="12sp"/>
                 <button id="undoFishVoices" text="撤销最近一次名单操作" textSize="12sp"/>
             </vertical>
-            <spinner id="voiceMode" entries="系统朗读|Fish 免费模型|自动（Fish 优先）"/><text text="系统中文音色（测试与实际共用）" textColor="#8F9BAF" textSize="12sp"/><spinner id="systemVoice" entries="等待中文语音引擎初始化"/><text id="rateLabel" text="音速：默认 1.0 倍" textColor="#8F9BAF" textSize="12sp"/><seekbar id="speechRate" max="150"/><text id="pitchLabel" text="系统音高：默认 1.0 倍" textColor="#8F9BAF" textSize="12sp"/><seekbar id="systemPitch" max="150"/><checkbox id="autoSpeak" text="回答后自动朗读（遵循媒体音量）" textColor="#D5DDE8"/>
-            <horizontal>
-                <button id="testTts" text="测试系统朗读" layout_weight="1" textSize="12sp"/>
-                <button id="testFish" text="测试 Fish 免费模型" layout_weight="1" textSize="12sp"/>
+
+                    </vertical>
+                </vertical>
+                <vertical id="voiceTuning" visibility="gone" marginTop="12">
+                    <text id="rateLabel" text="语速 1.00 倍" textColor="#657B91" textSize="12sp"/>
+                    <seekbar id="speechRate" max="150"/>
+                    <vertical id="systemPitchGroup" visibility="gone">
+                        <text id="pitchLabel" text="音高 1.00 倍" textColor="#657B91" textSize="12sp"/>
+                        <seekbar id="systemPitch" max="150"/>
+                    </vertical>
+                </vertical>
+            </vertical>
+            <vertical id="connectionCard" padding="18" marginBottom="14">
+                <horizontal gravity="center_vertical">
+                    <text text="大脑连接" textColor="#18324F" textSize="16sp" layout_weight="1"/>
+                    <text id="toggleConnection" text="设置 ›" textColor="#4E7BAE" textSize="14sp" padding="8"/>
+                </horizontal>
+                <text id="connectionSummary" text="连接你的模型" textColor="#657B91" textSize="12sp"/>
+                <vertical id="connectionPane" visibility="gone" marginTop="10">
+                    <input id="url" hint="HTTPS 中转站地址"/>
+                    <input id="key" hint="API Key" inputType="textPassword"/>
+                    <input id="model" hint="模型名称"/>
+                    <button id="testApi" text="测试连接" textSize="12sp"/>
+                </vertical>
+            </vertical>
+            <horizontal gravity="center_vertical">
+                <text id="setupPermissions" text="一键设置权限" textColor="#4E7BAE" textSize="14sp" padding="8 14" layout_weight="1"/>
+                <text id="toggleMore" text="更多设置 ›" textColor="#4E7BAE" textSize="14sp" padding="8 14"/>
             </horizontal>
-            <button id="refreshTts" text="从系统设置刷新引擎与音色" textSize="12sp"/><text text="语音输入方式" textColor="#8F9BAF" textSize="12sp"/><spinner id="recognitionMode" entries="自动（优先设备端识别）"/><button id="testCompatSpeech" text="测试系统语音页面（兼容入口）" textSize="12sp"/><button id="testRecognition" text="前台测试听写（不发送给模型）" textSize="12sp"/><button id="ttsSettings" text="打开系统文字转语音设置" textSize="12sp"/>
-            <text text="权限与消息" textColor="#B7EBDF" textSize="16sp" marginTop="18"/>
-            <text text="已授权时无需重复打开设置。屏幕文字只在你点击读取、预览并发送后交给模型。" textColor="#8F9BAF" textSize="12sp"/>
-            <horizontal>
-                <button id="overlayPerm" text="悬浮权限" layout_weight="1" textSize="12sp"/>
-                <button id="micPerm" text="麦克风权限" layout_weight="1" textSize="12sp"/>
-                <button id="accessPerm" text="无障碍" layout_weight="1" textSize="12sp"/>
-            </horizontal>
-            <button id="noticePerm" text="通知使用权设置" textSize="12sp"/>
-            <checkbox id="notifications" text="分析微信 / QQ / 钉钉通知（发送通知与人设到中转站）" textColor="#D5DDE8"/>
-            <button id="start" text="保存配置 · 召唤小狐妖" bg="#B7EBDF" textColor="#10251F" marginTop="16"/>
-            <button id="exitCompanion" text="退出小狐妖" textSize="12sp"/><text text="若调音量会退出：请在 AutoJs6 设置关闭“音量加键控制脚本运行”。" textColor="#8F9BAF" textSize="12sp"/><text id="status" text="就绪。请先测试系统朗读和大脑连接。" textColor="#9AA9BC" textSize="13sp" marginTop="12"/>
-            <text text="记忆库：/sdcard/Jarvis/Memory/\n系统识别可能使用网络，取决于手机安装的识别服务。" textColor="#778397" textSize="12sp" marginTop="12"/>
+            <vertical id="morePane" visibility="gone" padding="18" marginTop="8">
+                <checkbox id="autoSpeak" text="回答后自动朗读" textColor="#18324F"/>
+                <text text="听写方式" textColor="#657B91" textSize="12sp" marginTop="12"/>
+                <spinner id="recognitionMode" entries="自动"/>
+                <horizontal><button id="testCompatSpeech" text="兼容页面测试" layout_weight="1" textSize="12sp"/><button id="testRecognition" text="前台听写测试" layout_weight="1" textSize="12sp"/></horizontal>
+                <text text="微信、QQ、钉钉通知默认分析；通知文字与人设将发送至你配置的模型。读屏仍需预览后发送。" textColor="#657B91" textSize="12sp" marginTop="12"/>
+                <text text="若调音量会退出，请在 AutoJs6 关闭音量加键停止脚本。记忆保存在 /sdcard/Jarvis/Memory/。" textColor="#657B91" textSize="12sp" marginTop="10"/>
+                <button id="exitCompanion" text="退出小狐妖" textSize="12sp" marginTop="12"/>
+            </vertical>
+            <text text="BLUE FOX · preview8" textColor="#7B93AC" textSize="10sp" gravity="center" marginTop="24"/>
         </vertical>
     </scroll>
 );
@@ -86,12 +118,11 @@ ui.key.setText(store.get("dsKey", ""));
 ui.model.setText(store.get("dsModel", "deepseek-chat"));
 ui.fishKey.setText(store.get("fishKey", ""));
 ui.voice.setText(store.get("voiceId", ""));
-C.provider = String(store.get("voiceProviderV4", "system")); C.speechRate = Number(store.get("speechRateV4", 1)); C.pitch = Number(store.get("pitchV4", 1)); C.systemVoice = String(store.get("systemVoiceChoiceV43", ""));
-ui.voiceMode.setSelection(Math.max(0, ["system", "fish", "auto"].indexOf(C.provider)));
+C.provider = store.get("voiceProviderV4", "system") === "fish" ? "fish" : "system"; C.speechRate = Number(store.get("speechRateV4", 1)); C.pitch = Number(store.get("pitchV4", 1)); C.systemVoice = "";
 ui.speechRate.setProgress(Math.round((C.speechRate - 0.5) * 100)); ui.systemPitch.setProgress(Math.round((C.pitch - 0.5) * 100));
 if (!store.get("autoReadDefaultV44", false)) { store.put("autoSpeakV3", true); store.put("autoReadDefaultV44", true); }
 ui.autoSpeak.setChecked(store.get("autoSpeakV3", true));
-ui.notifications.setChecked(store.get("notificationsV3", false));
+store.put("notificationsV3", true);
 
 function normalizeApiUrl(raw) {
     let url = String(raw || "").trim().replace(/\/+$/, "");
@@ -104,10 +135,11 @@ function saveConfig() {
     C.key = String(ui.key.text()).trim(); C.model = String(ui.model.text()).trim() || "deepseek-chat";
     C.fishKey = String(ui.fishKey.text()).trim(); C.voice = String(ui.voice.text()).trim();
     syncVoiceSettings();
-    C.autoSpeak = ui.autoSpeak.isChecked(); C.notifications = ui.notifications.isChecked();
+    C.autoSpeak = ui.autoSpeak.isChecked(); C.notifications = true;
     store.put("dsUrl", String(ui.url.text()).trim()); store.put("dsKey", C.key);
     store.put("dsModel", C.model); store.put("fishKey", C.fishKey); store.put("voiceId", C.voice);
     store.put("autoSpeakV3", C.autoSpeak); store.put("notificationsV3", C.notifications);
+    ui.connectionSummary.setText(C.model);
 }
 function status(text) { if (!exiting) main(function() { if (!exiting) ui.status.setText(String(text)); }); }
 function safeError(e) {
@@ -118,22 +150,29 @@ function safeError(e) {
 function runConfigured(fn) { try { saveConfig(); fn(); } catch (e) { status(safeError(e)); } }
 function hasOverlayPermission() { return android.os.Build.VERSION.SDK_INT < 23 || android.provider.Settings.canDrawOverlays(context); }
 function settings(action) { app.startActivity({ action: action }); }
-ui.overlayPerm.on("click", function() {
-    if (hasOverlayPermission()) { status("悬浮窗权限已授权，无需再次设置。"); return; }
-    app.startActivity({ action: "android.settings.action.MANAGE_OVERLAY_PERMISSION", data: "package:" + context.getPackageName() });
-});
-ui.micPerm.on("click", function() {
-    if (android.os.Build.VERSION.SDK_INT < 23 || context.checkSelfPermission("android.permission.RECORD_AUDIO") === 0) { status("麦克风权限已授权。"); return; }
-    activity.requestPermissions(["android.permission.RECORD_AUDIO"], 73);
-    status("授权后再单击悬浮球；若系统不弹授权，请在应用权限中允许麦克风。");
-});
-ui.accessPerm.on("click", function() { settings("android.settings.ACCESSIBILITY_SETTINGS"); });
-ui.noticePerm.on("click", function() { settings("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"); });
+function permissionState() {
+    let pkg = String(context.getPackageName());
+    let listeners = String(android.provider.Settings.Secure.getString(context.getContentResolver(), "enabled_notification_listeners") || "");
+    let notified = listeners.split(":").some(function(value) { return value.split("/")[0] === pkg; });
+    return [hasOverlayPermission(), android.os.Build.VERSION.SDK_INT < 23 || context.checkSelfPermission("android.permission.RECORD_AUDIO") === 0, !!auto.service, notified];
+}
+function setupNextPermission() {
+    try {
+        let checks = permissionState(), missing = checks.indexOf(false);
+        if (missing < 0) { status("权限已就绪，无需重复授权。"); return; }
+        status("正在设置" + ["悬浮窗", "麦克风", "无障碍", "通知使用权"][missing] + "；返回后可再次点此入口，继续下一项。");
+        if (missing === 0) app.startActivity({ action: "android.settings.action.MANAGE_OVERLAY_PERMISSION", data: "package:" + context.getPackageName() });
+        else if (missing === 1) activity.requestPermissions(["android.permission.RECORD_AUDIO"], 73);
+        else settings(missing === 2 ? "android.settings.ACCESSIBILITY_SETTINGS" : "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
+    } catch (e) { status("权限设置未完成：" + safeError(e)); }
+}
+let awaitingTtsSettings = false;
+ui.setupPermissions.on("click", setupNextPermission);
 ui.ttsSettings.on("click", function() {
-    try { settings("com.android.settings.TTS_SETTINGS"); } catch (e) { status("请在手机设置搜索“文字转语音”，选择支持中文的引擎并下载中文语音包。"); }
+    try { awaitingTtsSettings = true; settings("com.android.settings.TTS_SETTINGS"); } catch (e) { awaitingTtsSettings = false; status("请在手机设置搜索“文字转语音”，选择支持中文的引擎并下载中文语音包。"); }
 });
 ui.start.on("click", function() { runConfigured(function() {
-    if (!hasOverlayPermission()) { status("尚无悬浮窗权限。请点上方“悬浮权限”授权；此处不会自动跳转。"); return; }
+    if (!hasOverlayPermission()) { status("尚无悬浮窗权限。请点“一键设置权限”授权；此处不会自动跳转。"); return; }
     try {
         initMemory();
         if (!started) { beginCompanion(); return; }
@@ -611,7 +650,7 @@ function renderFishManagerRows() {
     fishVoicePresets.forEach(function(entry) {
         let row = new android.widget.CheckBox(activity);
         row.setText(entry.name + "\n" + entry.id); row.setTextSize(14);
-        row.setTextColor(colors.parseColor("#EDF4FF")); row.setPadding(dp(8), dp(7), dp(8), dp(7));
+        row.setTextColor(colors.parseColor("#18324F")); row.setPadding(dp(8), dp(7), dp(8), dp(7));
         row.setButtonTintList(android.content.res.ColorStateList.valueOf(colors.parseColor("#B8D5FF")));
         row.setChecked(selectedFishIds.indexOf(entry.id) >= 0);
         row.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener({ onCheckedChanged: function(button, checked) {
@@ -755,12 +794,57 @@ function bindFishVoicePresets() {
     bindFishVoiceManager();
 }
 
+function toggleSection(view) { view.setVisibility(view.getVisibility() === V.VISIBLE ? V.GONE : V.VISIBLE); }
+function chooseVoice(provider) {
+    if (provider !== "system" && provider !== "fish") return;
+    C.provider = provider; store.put("voiceProviderV4", provider);
+    ui.systemPane.setVisibility(provider === "system" ? V.VISIBLE : V.GONE);
+    ui.fishPane.setVisibility(provider === "fish" ? V.VISIBLE : V.GONE);
+    ui.voiceTuning.setVisibility(V.VISIBLE);
+    ui.systemPitchGroup.setVisibility(provider === "system" ? V.VISIBLE : V.GONE);
+    ui.voiceSummary.setText(provider === "system" ? "系统引擎 · 跟随手机音色" : "Fish · 使用所选音色");
+    rounded(ui.chooseSystem, provider === "system" ? "#D9E9FC" : "#EFF5FC", 12);
+    rounded(ui.chooseFish, provider === "fish" ? "#D9E9FC" : "#EFF5FC", 12);
+    syncVoiceSettings();
+}
+function styleMainPanel(view) {
+    if (view instanceof android.widget.EditText) {
+        view.setTextColor(colors.parseColor("#18324F")); view.setHintTextColor(colors.parseColor("#71879D")); view.setTextSize(14);
+        view.setPadding(dp(12), dp(10), dp(12), dp(10)); rounded(view, "#EFF5FC", 10);
+    } else if (view instanceof android.widget.Button && !(view instanceof android.widget.CompoundButton)) {
+        view.setTextColor(colors.parseColor("#325A86")); view.setAllCaps(false);
+        view.setBackgroundTintList(null); rounded(view, "#EFF5FC", 12);
+    }
+    if (view instanceof android.widget.CompoundButton) view.setButtonTintList(android.content.res.ColorStateList.valueOf(colors.parseColor("#648FC3")));
+    if (view instanceof android.widget.SeekBar) {
+        let tint = android.content.res.ColorStateList.valueOf(colors.parseColor("#648FC3"));
+        view.setProgressTintList(tint); view.setThumbTintList(tint);
+    }
+    if (view instanceof android.view.ViewGroup) for (let i = 0; i < view.getChildCount(); i++) styleMainPanel(view.getChildAt(i));
+}
+function bindMinimalPanel() {
+    styleMainPanel(ui.start.getRootView());
+    [ui.soundCard, ui.connectionCard, ui.morePane].forEach(function(view) { rounded(view, "#FFFFFF", 20); });
+    rounded(ui.start, "#6795CE", 16); ui.start.setTextColor(colors.parseColor("#FFFFFF"));
+    ui.chooseSystem.on("click", function() { chooseVoice("system"); });
+    ui.chooseFish.on("click", function() { chooseVoice("fish"); });
+    ui.toggleConnection.on("click", function() { toggleSection(ui.connectionPane); });
+    ui.toggleMore.on("click", function() { toggleSection(ui.morePane); });
+    ui.editFishVoice.on("click", function() { toggleSection(ui.fishEditPane); });
+    ui.connectionSummary.setText(String(ui.model.text()) || "连接你的模型");
+    ui.voiceSummary.setText("当前：" + (C.provider === "fish" ? "Fish" : "系统") + " · 点选展开设置");
+    if (!String(ui.key.text()).trim()) ui.connectionPane.setVisibility(V.VISIBLE);
+    activity.getEventEmitter().on("resume", function() {
+        if (awaitingTtsSettings) { awaitingTtsSettings = false; main(refreshSystemTts); }
+    });
+}
+
 function lightSpinner(spinner, labels) {
     let themed = new android.view.ContextThemeWrapper(context, android.R.style.Theme_Material_Light);
     let adapter = new android.widget.ArrayAdapter(themed, android.R.layout.simple_spinner_item, labels);
     adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
     spinner.setAdapter(adapter);
-    spinner.setBackgroundColor(colors.parseColor("#E7EEF8"));
+    rounded(spinner, "#EFF5FC", 10);
     spinner.setPopupBackgroundDrawable(new android.graphics.drawable.ColorDrawable(colors.parseColor("#E7EEF8")));
 }
 function initializeSystemLanguage() {
@@ -779,7 +863,8 @@ function beginCompanion() {
     createOrb(function() {
         starting = false; started = true;
         if (C.notifications) startNotifications();
-        status("小狐妖已就绪。通知分析为独立选项，不影响召唤。");
+        ui.start.setText("保存设置 · 小狐妖已启动");
+        status("小狐妖已就绪。单击听写，双击输入。");
     }, function(e) {
         starting = false; started = false;
         status("创建失败：" + safeError(e) + "\n" + safeError(e.stack || ""));
@@ -795,15 +880,13 @@ function recognitionFailure(code) {
 }
 
 function syncVoiceSettings() {
-    C.provider = ["system", "fish", "auto"][ui.voiceMode.getSelectedItemPosition()] || "system";
     C.speechRate = Companion.speed(0.5 + ui.speechRate.getProgress() / 100, "IDLE", "system");
     C.pitch = clamp(0.5 + ui.systemPitch.getProgress() / 100, 0.5, 2);
-    let voice = systemVoiceOptions[ui.systemVoice.getSelectedItemPosition()];
-    C.systemVoice = voice ? String(voice.getName()) : "";
+    C.systemVoice = ""; // The system TTS settings own engine and voice selection.
     store.put("voiceProviderV4", C.provider); store.put("speechRateV4", C.speechRate); store.put("pitchV4", C.pitch);
     store.put("systemVoiceChoiceV43", C.systemVoice);
-    ui.rateLabel.setText("音速 " + C.speechRate.toFixed(2) + " 倍（Fish 限 0.8—1.3）");
-    ui.pitchLabel.setText("系统音高 " + C.pitch.toFixed(2) + " 倍（Fish 不使用此项）");
+    ui.rateLabel.setText("音速 " + C.speechRate.toFixed(2) + " 倍" + (C.provider === "fish" ? " · 实际范围 0.8–1.3" : ""));
+    ui.pitchLabel.setText("系统音高 " + C.pitch.toFixed(2) + " 倍");
 }
 function populateSystemVoices() {
     systemVoiceOptions = [null];
@@ -819,8 +902,7 @@ function populateSystemVoices() {
         updatingVoices = true;
         let names = systemVoiceOptions.map(function(v) { return v ? String(v.getName()) + (v.isNetworkConnectionRequired() ? " / 联网" : " / 本地") : "跟随系统设置（保留当前音色）"; });
         let index = systemVoiceOptions.map(function(v) { return v ? String(v.getName()) : ""; }).indexOf(C.systemVoice || "");
-        lightSpinner(ui.systemVoice, names);
-        ui.systemVoice.setSelection(Math.max(0, index));
+        if (ui.systemVoice) { lightSpinner(ui.systemVoice, names); ui.systemVoice.setSelection(Math.max(0, index)); }
     } catch (e) { status("音色控件更新失败：" + safeError(e)); }
     finally { setTimeout(function() { main(function() { updatingVoices = false; }); }, 80); }
 }
@@ -844,14 +926,10 @@ function bindVoiceControls() {
     ui.autoSpeak.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener({
         onCheckedChanged: function(button, checked) { C.autoSpeak = !!checked; store.put("autoSpeakV3", C.autoSpeak); if (!checked) stopAudio(); }
     }));
-    lightSpinner(ui.voiceMode, ["系统朗读", "Fish 免费模型", "自动（Fish 优先）"]);
-    ui.voiceMode.setSelection(Math.max(0, ["system", "fish", "auto"].indexOf(C.provider)));
-    lightSpinner(ui.systemVoice, ["跟随系统设置（正在连接引擎）"]);
-    ui.refreshTts.on("click", refreshSystemTts);
     ui.testRecognition.on("click", function() { startListening(true); });
     function refresh() {
-        ui.rateLabel.setText("音速 " + Number(C.speechRate).toFixed(2) + " 倍（Fish 限 0.8—1.3）");
-        ui.pitchLabel.setText("系统音高 " + Number(C.pitch).toFixed(2) + " 倍（下次回答生效）");
+        ui.rateLabel.setText("音速 " + Number(C.speechRate).toFixed(2) + " 倍" + (C.provider === "fish" ? " · 实际范围 0.8–1.3" : ""));
+        ui.pitchLabel.setText("系统音高 " + Number(C.pitch).toFixed(2) + " 倍");
     }
     ui.speechRate.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener({
         onProgressChanged: function(view, p, user) { if (user) { C.speechRate = 0.5 + p / 100; store.put("speechRateV4", C.speechRate); refresh(); } },
@@ -860,20 +938,6 @@ function bindVoiceControls() {
     ui.systemPitch.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener({
         onProgressChanged: function(view, p, user) { if (user) { C.pitch = 0.5 + p / 100; store.put("pitchV4", C.pitch); refresh(); } },
         onStartTrackingTouch: function() {}, onStopTrackingTouch: function() {}
-    }));
-    ui.voiceMode.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener({
-        onItemSelected: function(parent, view, index) { C.provider = ["system", "fish", "auto"][index] || "system"; store.put("voiceProviderV4", C.provider); },
-        onNothingSelected: function() {}
-    }));
-    ui.systemVoice.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener({
-        onItemSelected: function(parent, view, index) {
-            if (updatingVoices) return;
-            let previous = C.systemVoice;
-            C.systemVoice = systemVoiceOptions[index] ? String(systemVoiceOptions[index].getName()) : "";
-            store.put("systemVoiceChoiceV43", C.systemVoice);
-            if (previous && !C.systemVoice) refreshSystemTts();
-        },
-        onNothingSelected: function() {}
     }));
     refresh();
 }
@@ -1156,5 +1220,6 @@ events.on("exit", function() {
     });
 });
 bindVoiceControls();
+bindMinimalPanel();
 initTts();
 setInterval(function() {}, 1000);
