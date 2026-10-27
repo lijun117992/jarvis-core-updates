@@ -15,7 +15,7 @@ AutoJs6 安卓悬浮助手。这个公开仓库维护可编辑源码与手机更
 
 ## Status
 
-手机已发布版本始终以 [update.json](update.json) 与对应 Release 为准；当前源码为 preview12。新增 MiMo 中转站听写、当前视觉模型截图理解、手机文件/界面工具、当天持久上下文及每日整理。使用方式与权限见 [Agent 使用说明](docs/AGENT_GUIDE.md)。
+手机已发布版本始终以 [update.json](update.json) 与对应 Release 为准；当前源码与手机通道均为 preview12，公开附件大小/哈希和更新指针已验证。新增 MiMo 中转站听写、当前视觉模型截图理解、手机文件/界面工具、当天持久上下文及每日整理。使用方式与权限见 [Agent 使用说明](docs/AGENT_GUIDE.md)。
 
 保留八状态蓝狐、淡蓝悬浮输入/回复、系统/Fish 整段自动朗读、多音色候选批量管理，以及在线更新与回退。现有 User_Persona.md、人际关系表.md 手工内容保留，配置与 Key 留在手机。
 

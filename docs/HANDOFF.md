@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-当前源码 4.0.0-preview12，发布状态核对根 update.json。173 项桌面检查通过；没有安卓实机、真实 API 或 UI 视觉验收。用户 OPPO Find X7 / Android 16，系统 RecognitionService 和 RECOGNIZE_SPEECH Activity 均缺失，旧错误 5 不是单凭加权限就能修。默认改原中转站 mimo-v2.5-asr：AudioRecord PCM → WAV → Chat Completions input_audio，未实测网关。桌面/前台真实收音是最高优先验收。
+当前源码与手机通道均已发布 4.0.0-preview12，启动器 2.0。源码提交 25cc50f39d1c9ce1485cf231de852efbaabb4ae7；发布后已匿名下载校验 ZIP 与启动器，并核对公开 raw 更新指针。ZIP 2113560 字节，SHA-256 a9d623e95be7822bb103411ee6983dd4cd9da2de10b917c81a9bc9787e06cbab。未来状态仍须核对根 update.json。173 项桌面检查通过；没有安卓实机、真实 API 或 UI 视觉验收。用户 OPPO Find X7 / Android 16，系统 RecognitionService 和 RECOGNIZE_SPEECH Activity 均缺失，旧错误 5 不是单凭加权限就能修。默认改原中转站 mimo-v2.5-asr：AudioRecord PCM → WAV → Chat Completions input_audio，未实测网关。桌面/前台真实收音是最高优先验收。
 
 ## 源码与维护
 
