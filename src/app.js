@@ -1905,12 +1905,62 @@ function refreshSystemTts() {
     if (tts) { try { tts.shutdown(); } catch (e) {} tts = null; }
     initTts();
 }
+// Only remove app-owned update leftovers after the newly installed version has
+// actually launched. Downloads/WeiXin and all Memory/AgentData are never touched.
+function cleanupJarvisUpdateFiles() {
+    let base = "/sdcard/Jarvis/App/";
+    let pointer = new java.io.File(base + "state.json");
+    if (!pointer.isFile()) return;
+    let stateInfo = JSON.parse(files.read(String(pointer.getAbsolutePath())));
+    let keep = {};
+    [stateInfo.current, stateInfo.previous].forEach(function (id) {
+        if (id && /^4\.[0-9]+\.[0-9]+(?:-[a-z0-9]+)?-[0-9]{13}$/.test(id)) keep[id] = true;
+    });
+    if (!stateInfo.current || !keep[stateInfo.current]) return;
+    let releaseRoot = new java.io.File(base + "releases/").getCanonicalPath();
+    let active = new java.io.File(releaseRoot, stateInfo.current).getCanonicalPath();
+    if (new java.io.File(APP_DIR).getCanonicalPath() !== active) return;
+    function deleteOwned(file, ownerRoot) {
+        let resolved = file.getCanonicalPath();
+        if (resolved.indexOf(ownerRoot + java.io.File.separator) !== 0) return false;
+        if (file.isDirectory()) {
+            let children = file.listFiles();
+            if (!children) return false;
+            for (let i = 0; i < children.length; i++) if (!deleteOwned(children[i], ownerRoot)) return false;
+        }
+        return !!file.delete();
+    }
+    let releaseBase = new java.io.File(releaseRoot);
+    let installed = releaseBase.listFiles() || [];
+    for (let i = 0; i < installed.length; i++) {
+        let dir = installed[i], id = String(dir.getName());
+        if (dir.isDirectory() && /^4\.[0-9]+\.[0-9]+(?:-[a-z0-9]+)?-[0-9]{13}$/.test(id) && !keep[id])
+            deleteOwned(dir, releaseRoot);
+    }
+    // Online downloads are *.zip.part under this app's private update directory.
+    // Skip recent files to avoid racing an installation in progress.
+    let updatesRoot = new java.io.File(base + "updates/").getCanonicalPath();
+    let updates = new java.io.File(updatesRoot).listFiles() || [];
+    for (let i = 0; i < updates.length; i++) {
+        let file = updates[i], name = String(file.getName());
+        if (file.isFile() && /^4\.[0-9]+\.[0-9]+(?:-[a-z0-9]+)?-[0-9]{13}\.zip\.part$/.test(name)
+            && Date.now() - Number(file.lastModified()) > 180000) deleteOwned(file, updatesRoot);
+    }
+    let folder = new java.io.File(base);
+    let backups = (folder.listFiles() || []).filter(function (file) {
+        return file.isFile() && /^state-backup-[0-9]{13}\.json$/.test(String(file.getName()));
+    }).sort(function (a, b) { return Number(b.lastModified()) - Number(a.lastModified()); });
+    let rootPath = folder.getCanonicalPath();
+    for (let i = 2; i < backups.length; i++) deleteOwned(backups[i], rootPath);
+}
+
 function beginCompanion() {
     if (starting) { status("正在创建小狐妖，请稍候…"); return; }
     starting = true;
     createOrb(function() {
         starting = false; started = true;
         if (C.notifications) startNotifications();
+        threads.start(function() { try { cleanupJarvisUpdateFiles(); } catch (e) { status("旧更新包清理未完成：" + safeError(e)); } });
         ui.start.setText("保存设置 · 小狐妖已启动");
         status("小狐妖已就绪。单击听写，双击输入，长按历史。");
     }, function(e) {
