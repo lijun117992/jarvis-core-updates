@@ -2,10 +2,10 @@
   "project": "Jarvis-Core",
   "schema": 1,
   "channel": "preview",
-  "version": "4.0.0-preview11",
+  "version": "4.0.0-preview12",
   "minLauncher": 2,
-  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview11/Jarvis-Core-v4.0.0-preview11.zip",
-  "bytes": 2089936,
-  "sha256": "00c70b105bc14b90fee1d5439786db9c65ce03549659047e5d9c0290460d084d",
-  "notes": "音色新增/管理分开，新增表单留空；批量导入粘贴后自动识别保存，管理只保留全选、改名、删除和撤销。探测识别服务，在默认组件为空且仅有一个可调用服务时显式连接；语音仍待真机验证。"
+  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview12/Jarvis-Core-v4.0.0-preview12.zip",
+  "bytes": 2113560,
+  "sha256": "a9d623e95be7822bb103411ee6983dd4cd9da2de10b917c81a9bc9787e06cbab",
+  "notes": "新增 MiMo 中转站语音识别、当前模型截图理解、手机文件与界面执行、当天持久上下文和每日记忆整理；保留 User_Persona.md 与人际关系表.md 手工内容。173 项桌面检查通过，手机收音/截屏/操作仍待实机验证。"
 }
