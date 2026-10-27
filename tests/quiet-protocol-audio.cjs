@@ -38,6 +38,11 @@ test('incoming notifications are queued and recorded even when the agent is busy
  assert.equal(saved.noticePendingV415.length,1);
  assert.equal(saved.noticeRecentV415[0].sender,'朋友');
 });
+test('notification queue does not interrupt an active spoken answer',()=>{
+ let started=0;
+ const b=load(['drainNotificationQueue'],{C:{notifications:true,key:'fake'},noticePending:[{id:'1'}],noticeBusy:false,busy:false,listening:false,speechSession:{serial:1},exiting:false,noticeRetryAfter:0,threads:{start:()=>started++}});
+ b.drainNotificationQueue(); assert.equal(started,0); assert.equal(b.noticePending.length,1);
+});
 test('recent notifications are explicitly scoped to real system receipts',()=>{
  const b=load(['recentNotifications'],{noticeRecent:[{id:'1',package:'com.tencent.mm',sender:'朋友',text:'已收到',at:1,status:'已分析'}],noticePending:[],noticeStarted:true});
  const output=b.recentNotifications({limit:10});
