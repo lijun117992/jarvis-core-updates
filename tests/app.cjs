@@ -85,7 +85,7 @@ test('Fish voice entry rejects blank ID, URL, accidental API key and corrupt exi
 });
 test('saved Fish preset persists ID, can be selected after reload, and leaves provider unchanged',()=>{
  let saved={},name='少年音',id='voice-1',rendered;
- const b=load(app,['saveFishVoicePreset','selectFishVoice'],{fishVoicePresets:[],updatingFishList:false,Companion:core,C:{provider:'system',voice:''},
+ const b=load(app,['backupFishVoices','saveFishVoicePreset','selectFishVoice'],{fishVoicePresets:[],updatingFishList:false,Companion:core,C:{provider:'system',voice:''},
   ui:{voice:{text:()=>id,setText:v=>id=v},fishVoiceName:{text:()=>name,setText:v=>name=v}},
   store:{put:(k,v)=>saved[k]=JSON.parse(JSON.stringify(v))},renderFishVoiceList:v=>rendered=v,status:()=>{},safeError:String});
  b.saveFishVoicePreset();id='voice-2';name='温柔音';b.saveFishVoicePreset();assert.equal(saved.fishVoicePresetsV45.length,2);assert.equal(rendered,'voice-2');

@@ -96,5 +96,62 @@
         if (found >= 0) out[found] = item; else out.push(item);
         return out;
     }
-    return { states: names, fps: fps, frame: frame, mirror: mirror, chooseState: chooseState, bubble: bubble, splitSentences: splitSentences, speechBlocks: speechBlocks, progressCount: progressCount, prefix: prefix, fishText: fishText, destination: destination, speed: speed, upsertFishVoice: upsertFishVoice };
+    function cloneFishVoices(list) {
+        if (!Array.isArray(list)) throw Error("音色列表格式异常，未覆盖原记录");
+        return list.map(function(v) {
+            if (!v || typeof v.id !== "string" || typeof v.name !== "string") throw Error("原音色记录格式异常，未覆盖");
+            return { name: v.name, id: v.id };
+        });
+    }
+    function planFishImport(list, raw, overwriteNames) {
+        var items = cloneFishVoices(list), text = String(raw || "").replace(/^\uFEFF/, "").trim();
+        if (!text) throw Error("请先粘贴音色名单");
+        if (text.length > 200000) throw Error("一次导入内容过长，请分批导入");
+        var rows = [], errors = [], seen = [], added = 0, updated = 0, duplicates = 0;
+        if (/^[\[{]/.test(text)) {
+            var data;
+            try { data = JSON.parse(text); } catch (e) { throw Error("JSON 格式不正确，未导入"); }
+            if (!Array.isArray(data)) throw Error("JSON 请使用数组：包含音色 ID 字符串或 name/id 对象");
+            rows = data.map(function(v, i) { return { number: i + 1, value: v }; });
+        } else {
+            text.split(/\r?\n/).forEach(function(line, index) {
+                line = line.trim(); if (!line || line.charAt(0) === "#") return;
+                var parts = line.split(/[,，\t]/);
+                rows.push({ number: index + 1, value: parts.length === 1 ? line : parts.length === 2 ? { name: parts[0].trim(), id: parts[1].trim() } : null });
+            });
+        }
+        if (rows.length > 2000) throw Error("单次最多 2000 条，请分批导入");
+        rows.forEach(function(row) {
+            try {
+                var v = row.value, id, name;
+                if (typeof v === "string") { id = v; name = ""; }
+                else if (v && typeof v === "object" && typeof v.id === "string" && (v.name === undefined || typeof v.name === "string")) { id = v.id; name = v.name || ""; }
+                else throw Error("请使用 ID 或 名称,ID");
+                id = id.trim(); name = name.trim();
+                // Reuse single-item validation; never echo accidental keys in errors.
+                upsertFishVoice([], name, id);
+                if (seen.indexOf(id) >= 0) { duplicates++; return; }
+                seen.push(id);
+                var at = -1;
+                for (var i = 0; i < items.length; i++) if (items[i].id === id) { at = i; break; }
+                if (at >= 0) {
+                    if (overwriteNames && name && items[at].name !== name.slice(0, 32)) { items[at].name = name.slice(0, 32); updated++; }
+                    else duplicates++;
+                } else { items = upsertFishVoice(items, name, id); added++; }
+            } catch (e) { errors.push({ row: row.number, message: String(e.message || e) }); }
+        });
+        return { items: items, added: added, updated: updated, duplicates: duplicates, errors: errors, total: rows.length };
+    }
+    function removeFishVoices(list, ids) {
+        if (!Array.isArray(ids)) throw Error("请选择要删除的音色");
+        return cloneFishVoices(list).filter(function(v) { return ids.indexOf(v.id) < 0; });
+    }
+    function renameFishVoices(list, ids, prefix) {
+        prefix = String(prefix || "").trim();
+        if (!prefix || prefix.length > 28) throw Error("命名前缀请填写 1—28 个字符");
+        var result = cloneFishVoices(list), count = 0;
+        result.forEach(function(v) { if (ids.indexOf(v.id) >= 0) v.name = prefix + " " + (++count); });
+        return result;
+    }
+    return { states: names, fps: fps, frame: frame, mirror: mirror, chooseState: chooseState, bubble: bubble, splitSentences: splitSentences, speechBlocks: speechBlocks, progressCount: progressCount, prefix: prefix, fishText: fishText, destination: destination, speed: speed, upsertFishVoice: upsertFishVoice, cloneFishVoices: cloneFishVoices, planFishImport: planFishImport, removeFishVoices: removeFishVoices, renameFishVoices: renameFishVoices };
 });

@@ -1,5 +1,6 @@
 {
-  "version": "4.0.0-preview6",
+  "version": "4.0.0-preview7",
   "channel": "preview",
-  "minLauncher": 2
+  "minLauncher": 2,
+  "notes": "新增 Fish 音色批量粘贴导入、预览去重、多选删除、批量命名和撤销。名单仅保存在手机。原语音兼容路径仍需真机验收。"
 }

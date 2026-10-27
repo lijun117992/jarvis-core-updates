@@ -8,15 +8,16 @@ AutoJs6 安卓悬浮助手。这个公开仓库维护可编辑源码与手机更
 
 - [项目交接](docs/HANDOFF.md)：现状、故障证据、边界与待验收。
 - [维护与发布](docs/MAINTENANCE.md)：本地/GitHub 双向修改、检查、打包、发布。
+- [音色批量管理](docs/VOICE_PRESETS.md)：粘贴导入、多选删除、命名与撤销。
 - [工作规则](AGENTS.md)、[变更记录](CHANGELOG.md)。
 
 手机首次导入 [启动器 2.0](https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview6/Jarvis_Launcher-v2.js)，点击检查更新、下载安装、启动。Key、记忆、音色名单留在原 AutoJs6，不上传本仓库。
 
 ## Status
 
-当前已发布程序是 [4.0.0-preview6](https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview6)，手机指针见 [update.json](update.json)。本轮加入源码与文档，不改变已发布程序包。
+手机已发布版本始终以 [update.json](update.json) 与其对应 Release 为准；当前源码为 preview7，加入音色批量管理。preview6 的原始文件基线仍保留在 releases/ 中，不能用新构建覆盖旧附件。
 
-已有八状态蓝狐、悬浮输入/回复、系统/Fish 选择、整段自动朗读、多音色候选、主动无障碍文字预览、可选通知分析、在线/离线更新与回退。35 项应用与 7 项更新器桌面检查通过，匿名下载/哈希检查通过；GitHub 全新克隆的依赖安装、检查、打包及源文件基线校验也已通过。
+已有八状态蓝狐、悬浮输入/回复、系统/Fish 选择、整段自动朗读、多音色候选及批量导入/删除/命名/撤销、主动无障碍文字预览、可选通知分析、在线/离线更新与回退。原 42 项加 15 项批量管理检查共 57 项桌面检查通过；此前 preview6 的匿名下载、全新克隆与基线校验也已通过。
 
 尚未完整手机验收。旧系统直接识别在前台也报 5，preview6 设备端/语音页面路径仍需实测。实际音色稳定性、动画与在线安装也不能仅靠桌面检查认定通过。
 

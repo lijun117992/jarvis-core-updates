@@ -1,9 +1,15 @@
 {
   "name": "jarvis-core-maintenance",
-  "version": "4.0.0-preview6",
+  "version": "4.0.0-preview7",
   "private": true,
   "description": "Offline syntax and behavior checks for the AutoJs6 Jarvis client",
-  "scripts": { "test": "node scripts/test.cjs" },
-  "engines": { "node": "^22.18.0 || >=24.11.0" },
-  "devDependencies": { "@babel/parser": "8.0.8" }
+  "scripts": {
+    "test": "node scripts/test.cjs"
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
+  "devDependencies": {
+    "@babel/parser": "8.0.8"
+  }
 }

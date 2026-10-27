@@ -41,7 +41,7 @@ def verify_public(url, expected_size, expected_hash):
                 raise SystemExit('Anonymous download exceeds expected size')
             digest.update(block)
     if size != expected_size or digest.hexdigest() != expected_hash:
-        raise SystemExit('Anonymous download hash/size differs; update pointer was not changed')
+        raise SystemExit('Anonymous download hash/size differs. Inspect remote release/pointer state; do not overwrite assets.')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

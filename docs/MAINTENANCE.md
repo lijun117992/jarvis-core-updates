@@ -28,7 +28,7 @@ node scripts/test.cjs
 python scripts/package.py
 ```
 
-也可 npm test；本机 npm 子 shell 曾无法解析 node，直接执行上述 test.cjs 已验证，无需修改全局环境。检查为 35 应用 + 7 更新器桌面模拟，无真实语音/付费请求。
+也可 npm test；本机 npm 子 shell 曾无法解析 node，直接执行上述 test.cjs 已验证，无需修改全局环境。检查为 35 应用 + 7 更新器 + 15 音色批量管理桌面模拟，共 57 项，无真实语音/付费请求。
 
 打包仅取 src/ 的三项文件，写 dist/ 下 ZIP、manifest.json 和 update.json，不上传、不读手机配置、不改根目录已发布指针。源版本从 version.json 读取。程序改动升新版本，并同步 package.json 与 CHANGELOG；不要把旧 tag 附件覆盖成新代码。
 

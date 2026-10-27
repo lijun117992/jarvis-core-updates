@@ -31,7 +31,7 @@ let orbSize = dp(96), screenW = device.width, screenH = device.height;
 ui.layout(
     <scroll bg="#0C1018">
         <vertical padding="22">
-            <text text="JARVIS / BLUE FOX 04 · preview6" textColor="#B7EBDF" textSize="12sp" marginTop="12"/>
+            <text text="JARVIS / BLUE FOX 04 · preview7" textColor="#B7EBDF" textSize="12sp" marginTop="12"/>
             <text text="你的小狐妖，在线。" textColor="#F1F4F8" textSize="26sp" marginTop="10"/>
             <text text="单击听写 · 双击输入 · 长按找回回复" textColor="#8F9BAF" textSize="13sp" marginBottom="20"/>
             <text text="大脑连接" textColor="#B7EBDF" textSize="16sp"/>
@@ -43,7 +43,23 @@ ui.layout(
             <text text="默认系统中文朗读。Fish 失败会退回系统语音。" textColor="#8F9BAF" textSize="12sp"/>
             <input id="fishKey" hint="Fish API Key（选填）" inputType="textPassword" textColor="#EDF1F7" textColorHint="#778397" textSize="14sp"/>
             <text text="已保存的 Fish 音色（只用于 Fish 模式）" textColor="#8F9BAF" textSize="12sp"/><spinner id="fishVoiceList" entries="手动输入 / 新增音色"/><input id="fishVoiceName" hint="音色名称，如：清朗男声" textColor="#EDF1F7" textColorHint="#778397" textSize="14sp"/><input id="voice" hint="Fish 音色 ID（选填）" textColor="#EDF1F7" textColorHint="#778397" textSize="14sp"/>
-            <button id="saveFishVoice" text="保存到候选音色列表" textSize="12sp"/><spinner id="voiceMode" entries="系统朗读|Fish 免费模型|自动（Fish 优先）"/><text text="系统中文音色（测试与实际共用）" textColor="#8F9BAF" textSize="12sp"/><spinner id="systemVoice" entries="等待中文语音引擎初始化"/><text id="rateLabel" text="音速：默认 1.0 倍" textColor="#8F9BAF" textSize="12sp"/><seekbar id="speechRate" max="150"/><text id="pitchLabel" text="系统音高：默认 1.0 倍" textColor="#8F9BAF" textSize="12sp"/><seekbar id="systemPitch" max="150"/><checkbox id="autoSpeak" text="回答后自动朗读（遵循媒体音量）" textColor="#D5DDE8"/>
+            <button id="saveFishVoice" text="保存到候选音色列表" textSize="12sp"/>
+            <button id="manageFishVoices" text="批量导入 / 管理音色" textSize="12sp"/>
+            <vertical id="fishVoiceManager" visibility="gone" padding="10" bg="#182435">
+                <text text="粘贴名单：每行 ID 或 名称,ID，也支持 JSON 数组。同批重复保留首条。" textColor="#CAD7E8" textSize="12sp"/>
+                <input id="voiceBatchInput" h="110" inputType="textMultiLine" gravity="top" hint="粘贴音色名单…" textColor="#F1F6FF" textColorHint="#9BACBF" textSize="14sp"/>
+                <checkbox id="voiceImportOverwrite" text="同 ID 时更新已有名称（默认保留原名称）" textColor="#D5DDE8"/>
+                <horizontal><button id="previewVoiceImport" text="预览导入" layout_weight="1" textSize="12sp"/><button id="applyVoiceImport" text="导入有效条目" enabled="false" layout_weight="1" textSize="12sp"/></horizontal>
+                <text id="voiceImportReport" text="预览后再确认，不会自动覆盖名单。" textColor="#B7CBE5" textSize="12sp"/>
+                <horizontal><button id="selectAllVoices" text="全选" layout_weight="1" textSize="12sp"/><button id="clearVoiceSelection" text="取消全选" layout_weight="1" textSize="12sp"/></horizontal>
+                <text id="voiceSelectionInfo" text="尚未选择" textColor="#D5DDE8" textSize="12sp"/>
+                <scroll h="220"><vertical id="voiceManagerRows"/></scroll>
+                <button id="deleteSelectedVoices" text="删除所选（先确认）" textSize="12sp"/>
+                <input id="voiceRenamePrefix" hint="批量命名前缀，如：收藏 → 收藏 1、收藏 2" textColor="#F1F6FF" textColorHint="#9BACBF" textSize="13sp"/>
+                <button id="renameSelectedVoices" text="按前缀编号重命名所选" textSize="12sp"/>
+                <button id="undoFishVoices" text="撤销最近一次名单操作" textSize="12sp"/>
+            </vertical>
+            <spinner id="voiceMode" entries="系统朗读|Fish 免费模型|自动（Fish 优先）"/><text text="系统中文音色（测试与实际共用）" textColor="#8F9BAF" textSize="12sp"/><spinner id="systemVoice" entries="等待中文语音引擎初始化"/><text id="rateLabel" text="音速：默认 1.0 倍" textColor="#8F9BAF" textSize="12sp"/><seekbar id="speechRate" max="150"/><text id="pitchLabel" text="系统音高：默认 1.0 倍" textColor="#8F9BAF" textSize="12sp"/><seekbar id="systemPitch" max="150"/><checkbox id="autoSpeak" text="回答后自动朗读（遵循媒体音量）" textColor="#D5DDE8"/>
             <horizontal>
                 <button id="testTts" text="测试系统朗读" layout_weight="1" textSize="12sp"/>
                 <button id="testFish" text="测试 Fish 免费模型" layout_weight="1" textSize="12sp"/>
@@ -573,6 +589,113 @@ let systemVoiceOptions = [];
 let starting = false;
 let updatingVoices = false;
 let fishVoicePresets = [], updatingFishList = false;
+let selectedFishIds = [], fishImportPlan = null;
+
+function backupFishVoices(action) {
+    store.put("fishVoiceUndoV47", { items: Companion.cloneFishVoices(fishVoicePresets), voiceId: C.voice || "", action: action });
+    fishImportPlan = null;
+}
+function commitFishVoiceList(items, selectedId, action, restoring) {
+    let next = Companion.cloneFishVoices(items);
+    if (!restoring) backupFishVoices(action);
+    store.put("fishVoicePresetsV45", next); store.put("voiceId", selectedId);
+    fishVoicePresets = next; C.voice = selectedId; selectedFishIds = []; fishImportPlan = null;
+    updatingFishList = true; ui.voice.setText(selectedId);
+    if (!selectedId) ui.fishVoiceName.setText("");
+    renderFishVoiceList(selectedId);
+    ui.applyVoiceImport.setEnabled(false);
+}
+function renderFishManagerRows() {
+    ui.voiceManagerRows.removeAllViews();
+    selectedFishIds = selectedFishIds.filter(function(id) { return fishVoicePresets.some(function(v) { return v.id === id; }); });
+    fishVoicePresets.forEach(function(entry) {
+        let row = new android.widget.CheckBox(activity);
+        row.setText(entry.name + "\n" + entry.id); row.setTextSize(14);
+        row.setTextColor(colors.parseColor("#EDF4FF")); row.setPadding(dp(8), dp(7), dp(8), dp(7));
+        row.setButtonTintList(android.content.res.ColorStateList.valueOf(colors.parseColor("#B8D5FF")));
+        row.setChecked(selectedFishIds.indexOf(entry.id) >= 0);
+        row.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener({ onCheckedChanged: function(button, checked) {
+            let at = selectedFishIds.indexOf(entry.id);
+            if (checked && at < 0) selectedFishIds.push(entry.id);
+            else if (!checked && at >= 0) selectedFishIds.splice(at, 1);
+            ui.voiceSelectionInfo.setText("共 " + fishVoicePresets.length + " 个，已选 " + selectedFishIds.length + " 个");
+        } }));
+        ui.voiceManagerRows.addView(row, new android.widget.LinearLayout.LayoutParams(-1, -2));
+    });
+    ui.voiceSelectionInfo.setText("共 " + fishVoicePresets.length + " 个，已选 " + selectedFishIds.length + " 个");
+    ui.undoFishVoices.setEnabled(!!store.get("fishVoiceUndoV47", null));
+}
+function confirmFishOperation(title, message, action) {
+    let themed = new android.view.ContextThemeWrapper(activity, android.R.style.Theme_Material_Light_Dialog_Alert);
+    new android.app.AlertDialog.Builder(themed).setTitle(title).setMessage(message)
+        .setNegativeButton("取消", null)
+        .setPositiveButton("确认", new android.content.DialogInterface.OnClickListener({ onClick: function() {
+            try { action(); } catch (e) { status(safeError(e)); }
+        } })).show();
+}
+function previewFishImport() {
+    try {
+        let raw = String(ui.voiceBatchInput.text()), overwrite = ui.voiceImportOverwrite.isChecked();
+        let plan = Companion.planFishImport(fishVoicePresets, raw, overwrite);
+        fishImportPlan = { plan: plan, base: JSON.stringify(fishVoicePresets), raw: raw, overwrite: overwrite };
+        let text = "新增 " + plan.added + "，改名 " + plan.updated + "，重复跳过 " + plan.duplicates + "，无效 " + plan.errors.length;
+        plan.errors.slice(0, 10).forEach(function(e) { text += "\n第 " + e.row + " 行/项：" + e.message; });
+        if (plan.errors.length > 10) text += "\n其余 " + (plan.errors.length - 10) + " 条无效项未展示。";
+        ui.voiceImportReport.setText(text);
+        ui.applyVoiceImport.setEnabled(plan.added + plan.updated > 0);
+    } catch (e) { fishImportPlan = null; ui.applyVoiceImport.setEnabled(false); ui.voiceImportReport.setText(safeError(e)); }
+}
+function applyFishImport() {
+    if (!fishImportPlan) { status("请先预览导入。"); return; }
+    if (fishImportPlan.base !== JSON.stringify(fishVoicePresets) || fishImportPlan.raw !== String(ui.voiceBatchInput.text()) || fishImportPlan.overwrite !== ui.voiceImportOverwrite.isChecked()) {
+        fishImportPlan = null; ui.applyVoiceImport.setEnabled(false); status("名单或导入内容已变化，请重新预览。"); return;
+    }
+    let plan = fishImportPlan.plan;
+    try {
+        commitFishVoiceList(plan.items, String(ui.voice.text()).trim(), "批量导入", false);
+        ui.voiceImportReport.setText("已导入：新增 " + plan.added + "，改名 " + plan.updated + "。重复/无效项未导入。");
+    } catch (e) { renderFishManagerRows(); status("导入未完成：" + safeError(e)); }
+}
+function deleteSelectedFishVoices() {
+    let ids = selectedFishIds.slice(); if (!ids.length) { status("请先勾选音色。"); return; }
+    let base = JSON.stringify(fishVoicePresets), current = String(ui.voice.text()).trim();
+    confirmFishOperation("删除 " + ids.length + " 个音色？", "只删除本地候选名单，不删除 Fish 平台音色。" + (ids.indexOf(current) >= 0 ? "\n当前选中的音色也将清空，请再选其他音色。" : "") + "\n可撤销最近一次名单操作。", function() {
+        if (base !== JSON.stringify(fishVoicePresets)) throw Error("名单已变化，请重新选择后删除");
+        commitFishVoiceList(Companion.removeFishVoices(fishVoicePresets, ids), ids.indexOf(current) >= 0 ? "" : current, "批量删除", false);
+        status("已删除 " + ids.length + " 个本地候选。当前正在播放的声音保持不变。");
+    });
+}
+function renameSelectedFishVoices() {
+    let ids = selectedFishIds.slice(); if (!ids.length) { status("请先勾选音色。"); return; }
+    try {
+        let next = Companion.renameFishVoices(fishVoicePresets, ids, String(ui.voiceRenamePrefix.text()));
+        let base = JSON.stringify(fishVoicePresets);
+        confirmFishOperation("重命名 " + ids.length + " 个音色？", "按列表顺序生成“前缀 1、前缀 2…”；只改本地名称，ID 不变。", function() {
+            if (base !== JSON.stringify(fishVoicePresets)) throw Error("名单已变化，请重新预览命名");
+            commitFishVoiceList(next, String(ui.voice.text()).trim(), "批量重命名", false);
+        });
+    } catch (e) { status(safeError(e)); }
+}
+function undoFishVoiceList() {
+    try {
+        let backup = store.get("fishVoiceUndoV47", null);
+        if (!backup || typeof backup.voiceId !== "string") throw Error("没有可撤销的名单操作");
+        commitFishVoiceList(Companion.cloneFishVoices(backup.items), backup.voiceId, "撤销", true);
+        store.remove("fishVoiceUndoV47"); renderFishManagerRows(); status("已撤销“" + backup.action + "”，恢复上一次名单和选中 ID。");
+    } catch (e) { status(safeError(e)); }
+}
+function bindFishVoiceManager() {
+    ui.voiceImportOverwrite.setButtonTintList(android.content.res.ColorStateList.valueOf(colors.parseColor("#B8D5FF")));
+    ui.manageFishVoices.on("click", function() {
+        let open = ui.fishVoiceManager.getVisibility() !== V.VISIBLE;
+        ui.fishVoiceManager.setVisibility(open ? V.VISIBLE : V.GONE); ui.manageFishVoices.setText(open ? "收起音色批量管理" : "批量导入 / 管理音色");
+        if (open) renderFishManagerRows();
+    });
+    ui.previewVoiceImport.on("click", previewFishImport); ui.applyVoiceImport.on("click", applyFishImport);
+    ui.selectAllVoices.on("click", function() { selectedFishIds = fishVoicePresets.map(function(v) { return v.id; }); renderFishManagerRows(); });
+    ui.clearVoiceSelection.on("click", function() { selectedFishIds = []; renderFishManagerRows(); });
+    ui.deleteSelectedVoices.on("click", deleteSelectedFishVoices); ui.renameSelectedVoices.on("click", renameSelectedFishVoices); ui.undoFishVoices.on("click", undoFishVoiceList);
+}
 
 function renderFishVoiceList(selectedId) {
     updatingFishList = true;
@@ -583,6 +706,7 @@ function renderFishVoiceList(selectedId) {
     ui.fishVoiceList.setSelection(selected + 1);
     if (selected >= 0) ui.fishVoiceName.setText(fishVoicePresets[selected].name);
     setTimeout(function() { main(function() { updatingFishList = false; }); }, 80);
+    if (ui.voiceManagerRows) renderFishManagerRows();
 }
 function selectFishVoice(index) {
     if (updatingFishList || index <= 0) return;
@@ -597,6 +721,7 @@ function saveFishVoicePreset() {
     try {
         let id = String(ui.voice.text()).trim(), name = String(ui.fishVoiceName.text()).trim();
         let updated = Companion.upsertFishVoice(fishVoicePresets, name, id);
+        backupFishVoices("保存音色");
         store.put("fishVoicePresetsV45", updated);
         fishVoicePresets = updated; C.voice = id; store.put("voiceId", id);
         renderFishVoiceList(id); status("Fish 音色已保存并选用，共 " + updated.length + " 个候选。当前回答音色保持不变。");
@@ -607,11 +732,13 @@ function bindFishVoicePresets() {
     let valid = Array.isArray(saved) && saved.every(function(v) { return v && typeof v.name === "string" && typeof v.id === "string"; });
     if (!valid) {
         ui.saveFishVoice.setEnabled(false);
+        ui.manageFishVoices.setEnabled(false);
         lightSpinner(ui.fishVoiceList, ["候选列表格式异常：保留原记录，仍可手动输入"]);
         status("已保留原候选记录，未覆盖。请先使用手动音色 ID。"); return;
     }
     fishVoicePresets = saved;
     let existing = String(ui.voice.text()).trim();
+    C.voice = existing;
     if (!saved.length && existing) {
         try { fishVoicePresets = Companion.upsertFishVoice([], "原有音色", existing); store.put("fishVoicePresetsV45", fishVoicePresets); }
         catch (e) { status("原音色 ID 未加入列表，可手动核对后保存。"); }
@@ -625,6 +752,7 @@ function bindFishVoicePresets() {
         beforeTextChanged: function() {}, onTextChanged: function() {},
         afterTextChanged: function() { if (!updatingFishList) ui.fishVoiceList.setSelection(0); }
     }));
+    bindFishVoiceManager();
 }
 
 function lightSpinner(spinner, labels) {
