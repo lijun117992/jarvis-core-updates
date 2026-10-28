@@ -1,7 +1,7 @@
 const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert/strict'),parser=require('@babel/parser'),core=require('../src/CompanionCore');
 const source=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8'),tree=parser.parse(source,{plugins:['jsx']});let count=0;
 function test(name,f){f();count++;console.log('PASS '+name)}
-function load(names,env={}){const b=vm.createContext({Companion:core,...env});vm.runInContext(names.map(name=>{const n=tree.program.body.find(n=>n.type==='FunctionDeclaration'&&n.id.name===name);assert(n,name);return source.slice(n.start,n.end)}).join('\n'),b);return b;}
+function load(names,env={}){const b=vm.createContext({closeConversationHistory:()=>{},historyWindow:null,Companion:core,...env});vm.runInContext(names.map(name=>{const n=tree.program.body.find(n=>n.type==='FunctionDeclaration'&&n.id.name===name);assert(n,name);return source.slice(n.start,n.end)}).join('\n'),b);return b;}
 const channels=[{id:'a',name:'对话站',url:'https://chat.example/v1/chat/completions',key:'fake-chat',model:'chat-a',asrModel:'old-default'},{id:'b',name:'音频站',url:'https://audio.example/v1/chat/completions',key:'fake-audio',model:'chat-b',asrModel:'asr-b',asrWire:'data-url'},{id:'c',name:'视觉站',url:'https://vision.example/v1/chat/completions',key:'fake-vision',model:'vision-c'}];
 test('each role resolves its own URL key and model and survives changing the active editor',()=>{
  const routes={chat:{channelId:'a',model:'same-name'},asr:{channelId:'b',model:'same-name'},vision:{channelId:'c',model:'same-name'}};

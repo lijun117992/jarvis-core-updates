@@ -6,12 +6,9 @@
 
 ## 当前状态
 
-main/手机通道保持 4.0.0-preview14。本分支 fix/notifications-storage-speech-preview15 为 PR #1 草稿候选，目前源码候选版本 preview17，包含原生通知桥、接收/清理补修及读屏/UI/朗读改进，未合并、未发布。用户已明确选择新增原生配套应用。
+当前源码4.0.0-preview18，准备作为用户授权的GitHub测试更新交付。实际发布状态必须读取main/update.json与Release，不以本文代替线上检查。用户已要求不再操作手机，后续不做ADB点击、录音、传包或替用户验收。
 
-272 项 Node 回归、3 项原生主机检查通过；APK 离线编译、签名/权限验证通过，程序 ZIP 构建通过。ADB 无连接设备，因此 URI 持续授权、后台重连、OPPO 强停/锁屏和长语音实际效果未验收。原 ASR400 也没有新的成功证据。
-
-候选代码和验收入口见 NATIVE_NOTIFICATIONS.md。下一步在手机安装原生 APK 与候选 ZIP、开启原生通知使用权、从 Jarvis 一键设置权限连接并授权。公开更新指针不能提前切换。
-
+本轮290项桌面回归通过，原生APK未改；历史和TTS后端有实质变化，仍待用户实机反馈。MiMo官方schema为input_audio，用户同一渠道偶发HTTP422类型拒绝；不同内部线路仅为推测，不可确认为根因。只对明确schema拒绝进行一次file格式兼容尝试，未得到真实成功证据前不可宣称已修好。
 
 ## 本轮手机反馈与待验收
 
@@ -26,6 +23,14 @@ preview16简化更多设置，工具与每日记忆默认开；权限入口负�
 speechText与spoken_summary只影响朗读，正文/文件内容不按此清洗。通知priority/direct_message/mentioned/needs_reply/alert_speech来自模型，未知按低优先处理；待汇报标记与原队列同快照，真实卡片创建后消费。importantRemindersV417和userRemindersV417为本机数据，脚本运行期提醒；没有微信内部实际已读/回复证据，不可声称“确实未回复”。系统闹钟只派发时钟页面，未经确认不称建立成功。
 
 web.search实际请求Bing RSS，无搜索Key；只把真实条目返回模型，未全文抓取。PC公开查询HTTP200并解析10项，未使用私密/付费API，安卓网络/XML仍待实机。当前共272项桌面回归，原生APK未改。手机通道仍为preview14，候选ZIP手动安装，无USB也可微信传包反馈。重点实测渠道/眼睛/模型浮层、跨渠道真实ASR/图片、群聊分级、提醒延后/取消及声音首尾。
+
+## preview18 最新修复说明
+
+历史使用historyWindow及独立historyEpoch，创建前关闭编辑/回复卡；外部触摸不阻断其他应用。系统TTS以synthesizeToFile合成私有WAV，wavePaddingPlan校验音轨并生成真实750ms静音插入计划，流式拷贝后MediaPlayer播放；试听共用此路径，合成与播放回调严格分开。旧队列静音不足的实机反馈是改动依据，新的文件合成兼容性仍需试听。
+
+toolResultSummary不再拼接普通成功答复；真实失败/部分完成仍自然说明，审计文件保留。最新任务在引用通知后；focusedHistory只缩短请求窗口，不删除当天日志。网站查询误答旧ASR问题时最多重聚焦一次，携带真实结果并防止重复执行；taskEpoch在最终UI回调拒绝旧结果。新指令可取消旧任务后续动作。
+
+ASR不操作用户手机或读取Key做远程测试。保留官方格式，未知类型拒绝时仅同渠道尝试file格式一次；无声不上传、说完2秒提交。参考[MiMo官方ASR](https://mimo.mi.com/docs/en-US/api/audio/Speech-Recognition)和[Android TextToSpeech](https://developer.android.com/reference/android/speech/tts/TextToSpeech)。网关具体file音频语义未知，因此兼容尝试不是可用性承诺。
 
 ## 源码与维护
 

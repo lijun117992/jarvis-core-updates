@@ -28,7 +28,7 @@ node scripts/test.cjs
 python scripts/package.py
 ```
 
-也可 npm test；本机 npm 子 shell 曾无法解析 node，直接执行上述 test.cjs 已验证，无需修改全局环境。检查为 35 应用 + 7 更新器 + 15 音色批量管理桌面模拟，共 57 项，无真实语音/付费请求。
+也可 npm test；本机 npm 子 shell 曾无法解析 node，直接执行上述 test.cjs 已验证，无需修改全局环境。本轮preview18共290项桌面模拟检查；以后以实际测试输出为准。主机测试不包含真实手机语音/付费API请求。
 
 打包仅取 src/ 的三项文件，写 dist/ 下 ZIP、manifest.json 和 update.json，不上传、不读手机配置、不改根目录已发布指针。源版本从 version.json 读取。程序改动升新版本，并同步 package.json 与 CHANGELOG；不要把旧 tag 附件覆盖成新代码。
 
@@ -47,3 +47,5 @@ python scripts/package.py
 配置仍在原 AutoJs6 jarvis_config_v2；记忆在 /sdcard/Jarvis/Memory/。程序版本在 /sdcard/Jarvis/App/releases/，当前/上一版由 App/state.json 指向。更新不得清除这些数据。
 
 安装/回退、麦克风、系统/Fish 音色、字幕节奏、蓝狐动画、键盘/触摸需真机验证，不能把桌面通过当作验收。
+
+用户本轮指定后续只通过GitHub交付，不再直接修改/操作手机。测试Release必须明确标注尚未实机验收的项目；上传附件匿名校验后最后切换update.json。发布测试更新不等于声音、后台或ASR已通过手机验收。
