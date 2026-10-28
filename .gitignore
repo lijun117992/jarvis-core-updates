@@ -8,3 +8,7 @@ __pycache__/
 state.json
 jarvis_config_v2/
 Memory/
+*.jks
+*.keystore
+*.apk
+*.apk.idsig

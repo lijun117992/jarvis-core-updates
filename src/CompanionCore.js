@@ -55,6 +55,35 @@
         if (s) out.push(s);
         return out;
     }
+    function speechText(text) {
+        return String(text || "").replace(/```[\s\S]*?(?:```|$)/g, " 这里有一段代码，已保留在文字里。 ").replace(/`[^`\n]+`/g, "一段代码")
+            .replace(/(?:https?:\/\/|www\.)[^\s<>\u3000\u3002\uff0c\uff01\uff1f]+/gi, "一条网址")
+            .replace(/\bdata:[^\s]+/gi, "一段数据")
+            .replace(/^\s*(?:(?:const|let|var|function|class|import|export|def|return|SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b|(?:curl|npm|pip|git)\s|[{}\[\]]\s*[,;]?\s*$).*$/gm, "这里有代码，已保留在文字里。")
+            .replace(/\b[A-Za-z0-9_+\/=.-]{48,}\b/g, "一段编号或编码")
+            .replace(/(?:这里有代码，已保留在文字里。\s*){2,}/g, "这里有一段代码，已保留在文字里。")
+            .replace(/\s{2,}/g, " ").trim();
+    }
+    function resolveModelRole(channels, routes, role, activeId) {
+        var route = routes && routes[role], list = Array.isArray(channels) ? channels : [], channel;
+        if (route) {
+            channel = list.filter(function(x) { return x.id === route.channelId; })[0];
+            if (!channel || !route.model) throw Error("所选" + role + "渠道或模型已失效，请重新选择");
+        } else if (role === "vision") {
+            return resolveModelRole(list, routes, "chat", activeId);
+        } else {
+            channel = list.filter(function(x) { return x.id === activeId; })[0];
+            if (!channel) throw Error("请先保存API渠道");
+            route = { model: role === "asr" ? channel.asrModel : channel.model };
+        }
+        if (!channel.key || !route.model) throw Error("请先选择" + role + "模型并填写渠道Key");
+        return { channelId: channel.id, channelName: channel.name, url: channel.url, key: channel.key, model: route.model, asrModel: route.model, asrWire: channel.asrWire || "base64" };
+    }
+    function noticePolicy(parsed) {
+        var priority = ["high", "normal", "low"].indexOf(parsed.priority) >= 0 ? parsed.priority : "low";
+        var important = !parsed.is_spam && priority === "high";
+        return { report: !parsed.is_spam && (important || parsed.direct_message === true || (parsed.mentioned === true && priority !== "low")), important: important, needsReply: parsed.needs_reply === true, summary: speechText(parsed.alert_speech || "") .slice(0, 600), priority: priority };
+    }
     function prefix(text, count) { return (Array.from ? Array.from(String(text)) : String(text).split("")).slice(0, count).join(""); }
     function destination(f, size) {
         var maxW = 1, maxH = 1;
@@ -394,6 +423,7 @@
             .replace(/^\s*#{1,6}\s+/gm, "").replace(/^\s*>\s?/gm, "")
             .replace(/^\s*(?:[-*_]\s*){3,}\s*$/gm, "").replace(/^\s*[-*+]\s+/gm, "").replace(/^\s*\d{1,2}[.)、]\s+/gm, "")
             .replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/g, "$1（$2）")
+            .replace(/^\s*执行记录[：:]\s*\d+\s*项文件更改[，,]\s*\d+\s*项失败[。.]?\s*$/gm, "")
             .replace(/\n{3,}/g, "\n\n").trim();
     }
     function localDayKey(date) {
@@ -456,23 +486,66 @@
         number(rate, 4); number(rate * 2, 4); number(2, 2); number(16, 2); ascii("data"); number(length, 4);
         return out;
     }
+    function focusedHistory(previous,budget) {
+        var list=Array.isArray(previous)?previous:[],result=[],used=0;
+        budget=Math.max(2000,Math.min(24000,budget||12000));
+        for(var i=list.length-1;i>=0&&result.length<8;i--){
+            var m=list[i];if(!m||["user","assistant"].indexOf(m.role)<0||typeof m.content!=="string")continue;
+            var text=m.role==="assistant"?plainReply(m.content):m.content;
+            if(used+text.length>budget)break;
+            result.unshift({role:m.role,content:text});used+=text.length;
+        }
+        if(result.length&&result[0].role==="assistant")result.shift();
+        return result;
+    }
+    function staleTopicReply(task,answer) {
+        task=String(task);answer=String(answer);
+        return /网站|网页|网址|https?:|帮我查|上网查|搜索|检索|查一下/i.test(task)&&!/听写|语音|音频|ASR|mimo|input_audio|422|400/i.test(task)&&/接口听写|input_audio|HTTP\s*(?:400|422)|识别服务[^\n]*错误码/i.test(answer);
+    }
+    function wavePaddingPlan(bytes,totalBytes,milliseconds) {
+        function u16(p){return (bytes[p]&255)+((bytes[p+1]&255)*256);}
+        function u32(p){return (bytes[p]&255)+(bytes[p+1]&255)*256+(bytes[p+2]&255)*65536+(bytes[p+3]&255)*16777216;}
+        function tag(p){return String.fromCharCode(bytes[p]&255,bytes[p+1]&255,bytes[p+2]&255,bytes[p+3]&255);}
+        if(bytes.length<44||tag(0)!=="RIFF"||tag(8)!=="WAVE"||totalBytes>4294000000)throw Error("系统引擎没有生成可播放的WAV音频");
+        var format=null,offset=12;
+        while(offset+8<=bytes.length){
+            var name=tag(offset),size=u32(offset+4);
+            if(name==="fmt "){
+                if(size<16||offset+24>bytes.length)throw Error("WAV格式信息不完整");
+                format={code:u16(offset+8),channels:u16(offset+10),rate:u32(offset+12),bytesPerSecond:u32(offset+16),align:u16(offset+20),bits:u16(offset+22)};
+            }
+            if(name==="data"){
+                if(!format||[1,3].indexOf(format.code)<0||format.rate<8000||format.rate>192000||format.channels<1||format.channels>8||[8,16,24,32].indexOf(format.bits)<0||format.align!==format.channels*format.bits/8||format.bytesPerSecond!==format.rate*format.align||!size||size%format.align!==0||(format.code===3&&format.bits!==32)||offset+8+size>totalBytes)throw Error("系统音频内容或格式无效");
+                var align=format.align%2?format.align*2:format.align;
+                var padding=Math.ceil(format.bytesPerSecond*Math.max(0,Math.min(2000,milliseconds))/1000/align)*align;
+                return {insertAt:offset+8,paddingBytes:padding,silenceValue:format.code===1&&format.bits===8?128:0,leadMs:padding*1000/format.bytesPerSecond,patches:[{offset:4,value:totalBytes+padding-8},{offset:offset+4,value:size+padding}]};
+            }
+            offset+=8+size+(size%2);
+        }
+        throw Error("未找到系统WAV音轨，请检查文字转语音引擎");
+    }
     function relayAsrPayload(base64, model, wire) {
         if (!base64 || base64.length > 10485760 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) throw Error("录音内容为空、过大或编码无效");
         model = String(model || "mimo-v2.5-asr").trim();
         if (!model || model.length > 120 || /[\r\n]/.test(model)) throw Error("语音识别模型名称无效");
+        if (wire === "file") return {model:model,stream:false,messages:[{role:"user",content:[{type:"file",file:{filename:"jarvis-voice.wav",file_data:"data:audio/wav;base64,"+base64}}]}]};
         var payload = { model: model, stream: false, messages: [{ role: "user", content: [{ type: "input_audio", input_audio: { data: wire === "base64" ? base64 : "data:audio/wav;base64," + base64, format: "wav" } }] }] };
         if (wire !== "base64") payload.asr_options = { language: "zh" };
         return payload;
     }
+    function asrTypeRejected(status,detail) {
+        return [400,422].indexOf(Number(status))>=0 && /unknown\s+variant[^\n]*input_audio/i.test(String(detail)) && /expected[^\n]*file/i.test(String(detail));
+    }
     function makeVoiceActivity(options) {
-        var pauseMs = options && options.pauseMs ? Math.max(600, Math.min(2000, options.pauseMs)) : 1300;
+        var pauseMs = options && options.pauseMs ? Math.max(600, Math.min(2000, options.pauseMs)) : 2000;
+        var noSpeechMs = options && options.noSpeechMs ? Math.max(1000,Math.min(7000,options.noSpeechMs)) : 2000;
         var loudMs = 0, lastVoice = 0, nonzero = 0;
         return { update: function(level, nonzeroSamples, frameMs, elapsed) {
             nonzero += Math.max(0, nonzeroSamples);
             if (level >= 180) { loudMs += frameMs; lastVoice = elapsed; }
             if (elapsed >= 1800 && nonzero === 0) return { stop: true, valid: false, reason: "麦克风返回全零音频，请到面板前台测试接口听写；系统可能限制后台收音" };
             if (loudMs >= 200 && elapsed - lastVoice >= pauseMs) return { stop: true, valid: true };
-            if (elapsed >= 7000 && loudMs < 200) return { stop: true, valid: false, reason: "没有听到清晰说话声，本次录音未上传" };
+            if (elapsed >= noSpeechMs && loudMs < 200) return { stop: true, valid: false, reason: "没有听到清晰说话声，本次录音未上传" };
             if (elapsed >= 25000) return { stop: true, valid: loudMs >= 200, reason: "已达到本次录音时限" };
             return { stop: false, valid: loudMs >= 200 };
         } };
@@ -522,5 +595,5 @@
         return { channels: channels, invalid: invalid + Math.max(0, entries.length - 100) };
     }
 
-    return { parseModelJson: parseModelJson, replyBody: replyBody, planChannelImport: planChannelImport, relationshipMarkdown: relationshipMarkdown, wavHeader: wavHeader, relayAsrPayload: relayAsrPayload, makeVoiceActivity: makeVoiceActivity, plainReply: plainReply, localDayKey: localDayKey, dayContext: dayContext, personaWithPreferences: personaWithPreferences, mergeDailyContacts: mergeDailyContacts, makeFileAgent: makeFileAgent, mergeCollaborationMemory: mergeCollaborationMemory, states: names, fps: fps, frame: frame, mirror: mirror, chooseState: chooseState, bubble: bubble, splitSentences: splitSentences, speechBlocks: speechBlocks, progressCount: progressCount, prefix: prefix, fishText: fishText, destination: destination, speed: speed, upsertFishVoice: upsertFishVoice, cloneFishVoices: cloneFishVoices, planFishImport: planFishImport, removeFishVoices: removeFishVoices, renameFishVoices: renameFishVoices };
+    return { focusedHistory: focusedHistory, staleTopicReply: staleTopicReply, asrTypeRejected: asrTypeRejected, wavePaddingPlan: wavePaddingPlan, speechText: speechText, resolveModelRole: resolveModelRole, noticePolicy: noticePolicy, parseModelJson: parseModelJson, replyBody: replyBody, planChannelImport: planChannelImport, relationshipMarkdown: relationshipMarkdown, wavHeader: wavHeader, relayAsrPayload: relayAsrPayload, makeVoiceActivity: makeVoiceActivity, plainReply: plainReply, localDayKey: localDayKey, dayContext: dayContext, personaWithPreferences: personaWithPreferences, mergeDailyContacts: mergeDailyContacts, makeFileAgent: makeFileAgent, mergeCollaborationMemory: mergeCollaborationMemory, states: names, fps: fps, frame: frame, mirror: mirror, chooseState: chooseState, bubble: bubble, splitSentences: splitSentences, speechBlocks: speechBlocks, progressCount: progressCount, prefix: prefix, fishText: fishText, destination: destination, speed: speed, upsertFishVoice: upsertFishVoice, cloneFishVoices: cloneFishVoices, planFishImport: planFishImport, removeFishVoices: removeFishVoices, renameFishVoices: renameFishVoices };
 });

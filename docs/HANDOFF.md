@@ -6,10 +6,31 @@
 
 ## 当前状态
 
-当前源码与手机通道已发布 4.0.0-preview14。源码提交 6cb5eeb209c8422f744540171609f0d5100ed72d；公开 ZIP、启动器附件和 raw 更新指针已匿名校验。ZIP 2123155 字节，SHA-256 dd9e0fe0087d60e08506d6fb82eefcdd0684236b4c4ab95757b0821fcd34ad71。未来状态仍须核对 update.json 与 Release。222 项桌面检查通过，未连接安卓手机或真实付费 API。用户 OPPO Find X7 / Android 16 系统识别接口缺失，旧 relay ASR400 尚无真实成功证据。本轮修复无关重装权限，不可直接称所有语音故障已解决。
+当前源码4.0.0-preview18，准备作为用户授权的GitHub测试更新交付。实际发布状态必须读取main/update.json与Release，不以本文代替线上检查。用户已要求不再操作手机，后续不做ADB点击、录音、传包或替用户验收。
 
-新增空白分栏渠道表单与固定标签；单击只听写，不弹卡片，长按历史/最近回复找回。跨行 answer JSON 曾被旧解析降为原文，模型自造工具 XML 与行动过程也曾直出；本版阻断此回退。朗读失败旧路径从头打字，Fish 播放中错误会系统重播，本版去除重复并保证显示进度不倒退。
+本轮290项桌面回归通过，原生APK未改；历史和TTS后端有实质变化，仍待用户实机反馈。MiMo官方schema为input_audio，用户同一渠道偶发HTTP422类型拒绝；不同内部线路仅为推测，不可确认为根因。只对明确schema拒绝进行一次file格式兼容尝试，未得到真实成功证据前不可宣称已修好。
 
+## 本轮手机反馈与待验收
+
+用户手机截图已显示原生桥通知使用权已授权、系统监听已连接、0条记录；这只能证明该时刻系统连接状态，未证明补收/锁屏成功。用户确认朗读缺开头和中断发生在系统音色。
+
+preview16简化更多设置，工具与每日记忆默认开；权限入口负责原生配对，历史在主界面。点按读屏上传文字坐标、长按上传截图，都直接分析。截图专用入口仅调用一次视觉模型；模型/网络耗时仍不受客户端控制。声音增加短静音预热，已开始播放后不按估计超时停止，尚须试听。没有USB也能用微信传包手动安装与截图验收，不把无设备连接当作开发完成证据。
+
+## preview17 最新实现与验收边界
+
+本轮在同一PR草稿分支实现内嵌渠道管理/显隐Key、浮层模型菜单和三类模型独立跨渠道路由。选择绑定稳定channelId/model，请求时捕获该渠道URL/Key；视觉cfg.vision、听写roleConfig(asr)、对话brainConfig分开。API列表获取仍针对正在编辑的渠道，不得拿跨渠道对话配置去取错列表。新增空模型渠道先获取再选择，不虚构默认可调用模型。
+
+speechText与spoken_summary只影响朗读，正文/文件内容不按此清洗。通知priority/direct_message/mentioned/needs_reply/alert_speech来自模型，未知按低优先处理；待汇报标记与原队列同快照，真实卡片创建后消费。importantRemindersV417和userRemindersV417为本机数据，脚本运行期提醒；没有微信内部实际已读/回复证据，不可声称“确实未回复”。系统闹钟只派发时钟页面，未经确认不称建立成功。
+
+web.search实际请求Bing RSS，无搜索Key；只把真实条目返回模型，未全文抓取。PC公开查询HTTP200并解析10项，未使用私密/付费API，安卓网络/XML仍待实机。当前共272项桌面回归，原生APK未改。手机通道仍为preview14，候选ZIP手动安装，无USB也可微信传包反馈。重点实测渠道/眼睛/模型浮层、跨渠道真实ASR/图片、群聊分级、提醒延后/取消及声音首尾。
+
+## preview18 最新修复说明
+
+历史使用historyWindow及独立historyEpoch，创建前关闭编辑/回复卡；外部触摸不阻断其他应用。系统TTS以synthesizeToFile合成私有WAV，wavePaddingPlan校验音轨并生成真实750ms静音插入计划，流式拷贝后MediaPlayer播放；试听共用此路径，合成与播放回调严格分开。旧队列静音不足的实机反馈是改动依据，新的文件合成兼容性仍需试听。
+
+toolResultSummary不再拼接普通成功答复；真实失败/部分完成仍自然说明，审计文件保留。最新任务在引用通知后；focusedHistory只缩短请求窗口，不删除当天日志。网站查询误答旧ASR问题时最多重聚焦一次，携带真实结果并防止重复执行；taskEpoch在最终UI回调拒绝旧结果。新指令可取消旧任务后续动作。
+
+ASR不操作用户手机或读取Key做远程测试。保留官方格式，未知类型拒绝时仅同渠道尝试file格式一次；无声不上传、说完2秒提交。参考[MiMo官方ASR](https://mimo.mi.com/docs/en-US/api/audio/Speech-Recognition)和[Android TextToSpeech](https://developer.android.com/reference/android/speech/tts/TextToSpeech)。网关具体file音频语义未知，因此兼容尝试不是可用性承诺。
 
 ## 源码与维护
 
@@ -59,7 +80,7 @@ requestBrain 的 chatMessageText 兼容文本数组、单个 tool_calls；空白
 
 ASR400 真正服务端原因此前被丢掉，本版 httpFailure 只取错误消息/代码，脱敏 Key/长媒体，不把完整响应/录音落日志。requestRelayAsr 仍用 Chat Completions；Base64 模式不带 asr_options，Data URL 模式保留 language zh。停顿 900ms 收尾不等于流式识别，上传/模型推理仍有延迟，不能保证低延迟或成功。
 
-projectionActive 只保留当前宿主会话，正常截图完成不释放；没有定时抓帧。系统撤销导致捕获失败时释放并要求重授权。新增停止共享入口在更多设置，退出释放；未缓存 Android 投屏授权令牌。
+projectionActive 只保留当前宿主会话，正常截图完成不释放；没有定时抓帧。系统撤销导致捕获失败时释放并要求重授权。可从系统共享提示停止共享，退出释放；未缓存 Android 投屏授权令牌。
 
 
 ## preview14 行为与回归入口
@@ -71,3 +92,16 @@ CompanionCore.parseModelJson 有界修复 JSON 字符串内控制字符和多次
 nativeFailure → finishSpeechAsText 保留全文不重打。Fish fallbackPhrase 每 attempt 仅一次，audioStartedEver 后不换引擎重读。showSpeechProgress 单调，重复 nativeStart 和过期 typeSilently 回调不影响新回复；Fish 未知时长采用保守估算，不能 15 秒固定截断。真实系统/Fish 中断原因仍需电话侧证据，不以模拟通过冒充实机声音验收。
 
 新增 tests/quiet-protocol-audio.cjs，覆盖换行/嵌套协议、伪造工具过程、任务最终输出、分栏标签、播放回调及文字重播。所有用例使用假密钥和合成内容。
+
+
+## preview15 原生桥交接
+
+android-notifications/ 是 SDK35/min28 原生 Java 配套源码，不依赖 Gradle/第三方运行库；scripts/build_notification_bridge.py 使用现有 SDK/JDK 构建签名 APK。scripts/test_notification_bridge.py 验证真实 APK 签名/权限与主机 SQLite 规则。签名密钥在本机被忽略的私有工作区，未来覆盖升级必须保留，禁止提交。
+
+原生 SQLite 独立于脚本保存 5000 条/7 天通知，读取或写入时过期清理；进程重连补收仍留在通知栏的最近记录，不承诺退出期间已经消失的通知。只读 Provider 不公开导出，PAIR Activity 仅用户点击后向实际调用方授予持久只读 URI；撤销授权不删除通知。BOOT/系统重新绑定不等于绕过 OPPO 后台/强停限制。
+
+AutoJs6 通过 nativeBridgeUriV415 保存 OS 授权地址，noticeQueueV415 单快照含 pending/recent/retry/overflow/cursor/instance。旧的两份队列键可迁移，状态按 ID 同步；超上限保护在途项、失败有限重试。原生游标与入队持久化衔接、原生数据重建按实例重置，满队列不推进。原生模式不再同时接收宿主回调，避免重复；手动断开可回原 AutoJs6 路径。
+
+通知提示通过最终 showAnswer 回调检查语音/输入/卡片，防检查后排队期间新语音启动。通知点击只尝试其真实 PendingIntent，失效后明确回退打开应用，不伪造联系人链接。没有原生语音播放器，本轮不能宣称语音中断根因已修。
+
+新增 notifications-cleanup.cjs 模拟重启/磁盘失败/回压/URI、以及仅内存文件树的清理和链接攻击，无真实主机删除。NATIVE_NOTIFICATIONS.md 有手机验收清单与源码/构建/发布边界。

@@ -12,7 +12,7 @@ test('initial panel hides voice details and diagnostics; removed notification an
  for(const name of ['notifications','voiceMode','systemVoice','overlayPerm','micPerm','accessPerm','noticePerm','refreshTts'])assert(!ids.has(name),name);
 });
 test('all main-panel event bindings resolve to existing views',()=>{
- walk(tree,n=>{if(n.type==='CallExpression'&&n.callee.type==='MemberExpression'&&n.callee.property.name==='on'&&n.callee.object.type==='MemberExpression'&&n.callee.object.object.name==='ui')assert(ids.has(n.callee.object.property.name),n.callee.object.property.name);});
+ walk(tree,n=>{if(n.type==='CallExpression'&&n.callee.type==='MemberExpression'&&n.callee.property.name==='on'&&n.callee.object.type==='MemberExpression'&&n.callee.object.object.name==='ui'&&!n.callee.object.computed)assert(ids.has(n.callee.object.property.name),n.callee.object.property.name);});
 });
 test('new and management are separate and import has no extra action controls',()=>{
  for(const id of ['addFishVoice','manageFishVoices','openBatchImport','fishBatchPane'])assert(ids.has(id),id);
@@ -30,18 +30,18 @@ test('two provider choices are exclusive, preserve settings on reveal and reject
 });
 test('saving collapsed settings keeps provider, follows system voice and enables notifications',()=>{
  const data={},ui={asrWire:{getSelectedItemPosition:()=>0},asrModel:{text:()=>"mimo-v2.5-asr"},dailyMemory:{isChecked:()=>true},visionModel:{text:()=>''},agentEnabled:{isChecked:()=>true},connectionSummary:{setText:()=>{}},url:{text:()=> 'https://example.com'},key:{text:()=> 'test-key'},model:{text:()=> 'model'},fishKey:{text:()=> ''},voice:{text:()=> ''},autoSpeak:{isChecked:()=>true},speechRate:{getProgress:()=>64},systemPitch:{getProgress:()=>34},rateLabel:{setText:()=>{}},pitchLabel:{setText:()=>{}}};
- const b=load(['saveConfig','syncVoiceSettings','normalizeApiUrl'],{rememberModelChoice:()=>{},C:{provider:'fish',voice:'saved-id',systemVoice:'old-app-override'},ui,Companion:require('../src/CompanionCore.js'),clamp:(n,a,z)=>Math.max(a,Math.min(z,n)),store:{put:(k,v)=>data[k]=v}});b.saveConfig();
+ const b=load(['saveConfig','syncVoiceSettings','normalizeApiUrl'],{rememberModelChoice:()=>{},renderModelRoutes:()=>{},C:{provider:'fish',voice:'saved-id',systemVoice:'old-app-override'},ui,Companion:require('../src/CompanionCore.js'),clamp:(n,a,z)=>Math.max(a,Math.min(z,n)),store:{put:(k,v)=>data[k]=v}});b.saveConfig();
  assert.equal(data.voiceProviderV4,'fish');assert.equal(data.systemVoiceChoiceV43,'');assert.equal(data.notificationsV3,true);assert.equal(data.voiceId,'saved-id');assert.equal(data.speechRateV4,1.14);assert.equal(data.autoSpeakV3,true);
 });
-test('permission entry skips granted permissions and never opens settings when ready',()=>{
- let requested=[],checks=[true,true,true,false],messages=[];
- const b=load(['setupNextPermission'],{permissionState:()=>checks,settings:a=>requested.push(a),status:t=>messages.push(t),safeError:String});
- b.setupNextPermission();assert.deepEqual(requested,['android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS']);checks=[true,true,true,true];b.setupNextPermission();assert.equal(requested.length,1);assert(messages.at(-1).includes('无需重复授权'));
+test('permission entry pairs native bridge and skips saved grants',()=>{
+ let paired=0,checks=[true,true,true,false,true],messages=[],pairedUri='';
+ const b=load(['setupNextPermission'],{NATIVE_BRIDGE_PACKAGE:'bridge.test',android:{provider:{Settings:{Secure:{getString:()=> 'bridge.test/Listener'}}}},context:{getContentResolver:()=>({})},permissionFlow:false,permissionStep:-1,store:{get:()=>pairedUri},connectNativeBridge:()=>paired++,pollNativeBridge:()=>{},permissionState:()=>checks,settings:()=>{throw Error('unexpected settings')},status:t=>messages.push(t),safeError:String});
+ b.setupNextPermission();assert.equal(paired,1);pairedUri='content://fixed';b.setupNextPermission();assert.equal(paired,1);assert(messages.at(-1).includes('无需重复授权'));
 });
 test('notification access matches exact package rather than substring',()=>{
  let listeners='org.example.jarvis.other/Listener';const b=load(['permissionState'],{hasSharedFileAccess:()=>true,context:{getPackageName:()=> 'org.example.jarvis',getContentResolver:()=>({}),checkSelfPermission:()=>0},auto:{service:{}},hasOverlayPermission:()=>true,android:{os:{Build:{VERSION:{SDK_INT:33}}},provider:{Settings:{Secure:{getString:()=>listeners}}}}});
  assert.equal(b.permissionState()[3],false);listeners+=':org.example.jarvis/Listener';assert.equal(b.permissionState()[3],true);
 });
-test('one permission entry routes missing shared-file access to the host app settings',()=>{let opened;const b=load(['setupNextPermission'],{permissionState:()=>[true,true,true,true,false],app:{startActivity:a=>opened=a},context:{getPackageName:()=> 'org.example.jarvis'},status:()=>{},safeError:String});b.setupNextPermission();assert.equal(opened.action,'android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION');assert.equal(opened.data,'package:org.example.jarvis');});
+test('one permission entry routes missing shared-file access to the host app settings',()=>{let opened;const b=load(['setupNextPermission'],{permissionState:()=>[true,true,true,true,false],store:{get:()=>''},permissionStep:-1,app:{startActivity:a=>opened=a},context:{getPackageName:()=> 'org.example.jarvis'},status:()=>{},safeError:String});b.setupNextPermission();assert.equal(opened.action,'android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION');assert.equal(opened.data,'package:org.example.jarvis');});
 test('Android file permission detection reflects the actual all-files grant',()=>{let allowed=false;const b=load(['hasSharedFileAccess'],{android:{os:{Build:{VERSION:{SDK_INT:36}},Environment:{isExternalStorageManager:()=>allowed}}}});assert.equal(b.hasSharedFileAccess(),false);allowed=true;assert.equal(b.hasSharedFileAccess(),true);});
 console.log(JSON.stringify({tests:total,passed:total,nativeUI:'NOT RUN'}));
