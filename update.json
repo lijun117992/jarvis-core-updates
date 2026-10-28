@@ -2,10 +2,10 @@
   "project": "Jarvis-Core",
   "schema": 1,
   "channel": "preview",
-  "version": "4.0.0-preview18",
+  "version": "4.0.0-preview19",
   "minLauncher": 2,
-  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview18/Jarvis-Core-v4.0.0-preview18.zip",
-  "bytes": 2140916,
-  "sha256": "621a21b1e6f583d061479dec5b700061d94d77be5a631a5625ee0bb1f83e463f",
-  "notes": "测试更新，待手机实测：系统朗读改为完整音频文件+真实750毫秒静音前导，试听共用同一路径；历史改为浅蓝悬浮列表，先收起输入框；移除执行统计与无关噪音汇报；2秒无声结束、不上传；仅明确input_audio类型拒绝时同渠道兼容尝试一次；最新指令优先，旧任务回调不能覆盖新回复。290项桌面检查通过。系统音色文件合成兼容性、听写间歇422及后台通知仍不保证已解决。Key/音色/记忆保留。"
+  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview19/Jarvis-Core-v4.0.0-preview19.zip",
+  "bytes": 2140918,
+  "sha256": "ce8a7afd341bfababcb92c5227cbcaa68eed8d6594677439953e4537984643e6",
+  "notes": "手机离线听写接入试用：修正 Android 识别服务权限筛选，支持发现 Offline Voice Input 等标准服务。安装上游无模型 APK 和 SenseVoice Small 中文 GGUF 后，在听写方式选系统直接识别。无需电脑常驻，默认配置与 Key/音色/记忆不变。292项主机检查通过不等于OPPO实机验收；上游安装/模型导入及桌面麦克风仍需用户测试。说明见 docs/OFFLINE_DICTATION.md。"
 }
