@@ -6,9 +6,9 @@
 
 ## 当前状态
 
-preview19 离线听写接入测试：用户选择手机独立运行的 Offline Voice Input。核对 v0.2.3 提供无界面 RecognitionService、9.7 MB无模型APK、SenseVoice Small GGUF中文模型；修正 Jarvis 服务过滤权限拼写。安装/中文识别/桌面收音未实测，不需要或使用电脑常驻。步骤见 OFFLINE_DICTATION.md。292项主机检查通过。此次不改变听写默认项，用户需选择系统直接识别；不拷贝Key、不变动原生通知桥、不操作手机。发布状态查看线上指针。
+preview19 已发布且 ZIP/启动器匿名校验，main/update.json 指向 preview19，源码提交 5eb396b；离线听写接入测试：用户选择手机独立运行的 Offline Voice Input。核对 v0.2.3 提供无界面 RecognitionService、9.7 MB无模型APK、SenseVoice Small GGUF中文模型；修正 Jarvis 服务过滤权限拼写。安装/中文识别/桌面收音未实测，不需要或使用电脑常驻。步骤见 OFFLINE_DICTATION.md。292项主机检查通过。此次不改变听写默认项，用户需选择系统直接识别；不拷贝Key、不变动原生通知桥、不操作手机。发布状态查看线上指针。
 
-4.0.0-preview18已作为GitHub测试更新发布，ZIP/启动器/可选原生APK均匿名校验，main/update.json已指向preview18。发布源码为合并提交58ebe12b9d0cdfd1be98f979acd2e85f8366a9c6，更新指针提交3c5309f。实际最新状态仍须读取main/update.json与Release，不以本文代替线上检查。用户已要求不再操作手机，后续不做ADB点击、录音、传包或替用户验收。
+历史：4.0.0-preview18曾作为GitHub测试更新发布，ZIP/启动器/可选原生APK均匿名校验；当前指针已由preview19替代。发布源码为合并提交58ebe12b9d0cdfd1be98f979acd2e85f8366a9c6，更新指针提交3c5309f。实际最新状态仍须读取main/update.json与Release，不以本文代替线上检查。用户已要求不再操作手机，后续不做ADB点击、录音、传包或替用户验收。
 
 本轮290项桌面回归通过，原生APK未改；历史和TTS后端有实质变化，仍待用户实机反馈。MiMo官方schema为input_audio，用户同一渠道偶发HTTP422类型拒绝；不同内部线路仅为推测，不可确认为根因。只对明确schema拒绝进行一次file格式兼容尝试，未得到真实成功证据前不可宣称已修好。
 

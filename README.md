@@ -15,13 +15,11 @@ AutoJs6 安卓悬浮助手。这个公开仓库维护可编辑源码与手机更
 
 ## Status
 
-preview19 增加[手机离线听写试用](docs/OFFLINE_DICTATION.md)：修正标准识别服务发现权限名称；配合上游 Offline Voice Input + SenseVoice Small 中文模型，选择系统直接识别。292项主机检查通过，手机安装、收音和中文效果尚待用户测试。发布状态以 update.json 为准。
+已发布 [preview19 离线听写接入测试更新](https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview19)，程序 ZIP 与启动器已匿名校验，main/update.json 已指向 preview19。手机用原启动器检查 GitHub 更新即可安装；此次不修改通知桥 APK，也不远程操作手机。
 
-已发布[preview18测试更新](https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview18)，程序ZIP、启动器与可选原生APK已匿名校验，main/update.json已切换至preview18。手机用原启动器检查GitHub更新即可安装。用户要求后续仅经GitHub交付，不再直接操作手机。
+[手机离线听写试用](docs/OFFLINE_DICTATION.md)：安装上游 Offline Voice Input 无模型小包及 SenseVoice Small 中文 GGUF，听写方式选择系统直接识别。修正 Android 标准服务发现权限名称；不变更用户原有默认听写配置，不迁移 Key、音色或记忆。292 项主机检查通过，手机安装、中文准确率、后台麦克风与包可见性仍待用户实测。
 
-preview18包含自绘历史浮层、2秒静音结束、无执行统计的自然回复、当前指令/旧任务隔离，以及系统TTS文件播放与真实静音前导。原生通知桥、独立跨渠道模型、秘书式通知与运行期提醒继续保留；Key/个人记忆/音色不迁移。
-
-290项桌面回归通过；WAV采样与长度、静音门限、取消、历史层次、限次兼容尝试和当前问题优先均为主机验证。系统声音首尾、文件合成引擎兼容、网关间歇422和手机浮层交互仍待用户实测。未宣称所有幻觉、后台强停或语音问题已消除。
+preview18 的自绘历史浮层、系统 TTS 文件播放与真实静音前导、2秒无声结束、自然回复及当前指令隔离继续保留。系统声音首尾、网关间歇422与后台通知尚不保证已解决。
 
 开发环境：Python 3.10+、Git、GitHub CLI、Node 22.18+ 或 24.11+。
 
