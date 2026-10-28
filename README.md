@@ -15,7 +15,7 @@ AutoJs6 安卓悬浮助手。这个公开仓库维护可编辑源码与手机更
 
 ## Status
 
-preview20 候选已通过 298 项主机检查：听写仅保留 MiMo 与手机离线两项；离线模式隐藏 MiMo 模型配置，测试跟随选中方式，不再启动底部兼容面板。页脚版本同步为 preview20。
+[preview20 测试更新](https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview20)已发布，ZIP/启动器/离线适配APK/许可说明均匿名下载校验，main/update.json已切换；298项主机检查通过：听写仅保留 MiMo 与手机离线两项；离线模式隐藏 MiMo 模型配置，测试跟随选中方式，不再启动底部兼容面板。页脚版本同步为 preview20。
 
 [离线听写步骤](docs/OFFLINE_DICTATION.md)：本次另附“Jarvis 离线听写（测试）”独立 APK，保留上游识别代码，补充 AutoJs6 调用可见性。需手动安装、允许麦克风、重新导入已有 SenseVoice GGUF；原版可保留回退。APK签名/16KB对齐/原DEX与本地库字节一致性已核查，包含上游MIT许可及修改说明。无模型、联网权限、Key或个人数据；不需电脑常驻。
 
