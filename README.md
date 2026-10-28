@@ -15,7 +15,7 @@ AutoJs6 安卓悬浮助手。这个公开仓库维护可编辑源码与手机更
 
 ## Status
 
-本轮准备发布 **preview18测试更新**，实际手机通道以[update.json](update.json)及对应Release为准。源码、标签与附件校验完成前不能说手机已经可更新。用户要求后续仅经GitHub交付，不再直接操作手机。
+已发布[preview18测试更新](https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview18)，程序ZIP、启动器与可选原生APK已匿名校验，main/update.json已切换至preview18。手机用原启动器检查GitHub更新即可安装。用户要求后续仅经GitHub交付，不再直接操作手机。
 
 preview18包含自绘历史浮层、2秒静音结束、无执行统计的自然回复、当前指令/旧任务隔离，以及系统TTS文件播放与真实静音前导。原生通知桥、独立跨渠道模型、秘书式通知与运行期提醒继续保留；Key/个人记忆/音色不迁移。
 

@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-当前源码4.0.0-preview18，准备作为用户授权的GitHub测试更新交付。实际发布状态必须读取main/update.json与Release，不以本文代替线上检查。用户已要求不再操作手机，后续不做ADB点击、录音、传包或替用户验收。
+4.0.0-preview18已作为GitHub测试更新发布，ZIP/启动器/可选原生APK均匿名校验，main/update.json已指向preview18。发布源码为合并提交58ebe12b9d0cdfd1be98f979acd2e85f8366a9c6，更新指针提交3c5309f。实际最新状态仍须读取main/update.json与Release，不以本文代替线上检查。用户已要求不再操作手机，后续不做ADB点击、录音、传包或替用户验收。
 
 本轮290项桌面回归通过，原生APK未改；历史和TTS后端有实质变化，仍待用户实机反馈。MiMo官方schema为input_audio，用户同一渠道偶发HTTP422类型拒绝；不同内部线路仅为推测，不可确认为根因。只对明确schema拒绝进行一次file格式兼容尝试，未得到真实成功证据前不可宣称已修好。
 
@@ -105,3 +105,11 @@ AutoJs6 通过 nativeBridgeUriV415 保存 OS 授权地址，noticeQueueV415 单�
 通知提示通过最终 showAnswer 回调检查语音/输入/卡片，防检查后排队期间新语音启动。通知点击只尝试其真实 PendingIntent，失效后明确回退打开应用，不伪造联系人链接。没有原生语音播放器，本轮不能宣称语音中断根因已修。
 
 新增 notifications-cleanup.cjs 模拟重启/磁盘失败/回压/URI、以及仅内存文件树的清理和链接攻击，无真实主机删除。NATIVE_NOTIFICATIONS.md 有手机验收清单与源码/构建/发布边界。
+
+## 本轮发布记录与后续入口
+
+PR #1已合并，后续在正式repository/main维护，不再向旧fix/notifications-storage-speech-preview15分支追加工作。旧.work/preview15-review工作副本仅留档，不删除或覆盖。每次先check_remote.py核对远端再改。
+
+Release：https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview18 。290项桌面检查通过，现有原生APK0.1.0-preview未重编译，签名保持。已安装通知桥不用重装。没有进行本轮手机录音/播放/听写验收；file兼容上传和系统文件合成须由用户验证，发布测试版不等于故障已消除。
+
+系统音色缓存只写AutoJs私有cache目录，本轮结束/取消清理；不修改Key、音色候选、个人记忆或手机现有程序。后续不通过ADB给用户传包、点击界面或改文件，除非用户重新明确要求。

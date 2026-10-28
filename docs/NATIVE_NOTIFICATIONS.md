@@ -2,7 +2,9 @@
 
 ## 当前状态
 
-原生 APK 0.1.0-preview 与 Core 4.0.0-preview17 均为候选，PR #1 尚未合并，手机更新通道保持 preview14。272 项 Node 回归、3 项原生主机检查、APK 编译/签名/权限核查通过。未连接安卓手机，不宣称系统授权、后台常驻或长语音已通过。
+Core preview18测试更新及可选通知桥APK0.1.0-preview已随[GitHub Release](https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview18)公开并校验，PR #1已合并，main/update.json指向preview18。已安装原生桥的手机不必重装APK。本轮Core290项主机回归；APK未改，沿用此前编译/签名及3项原生主机检查结果。
+
+用户手机曾出现已授权但监听未连接，应用内requestRebind没有恢复；由用户在系统关闭再开启通知使用权后，已观察到实际绑定与记录增加。该现象未被本轮Core更新根治，锁屏/重启/强停/语音等不能据此宣称已通过。后续按用户要求由用户操作手机验收。
 
 ## 安装与连接
 
@@ -50,7 +52,7 @@ python scripts/package.py
 - 撤销读取授权后不能从桥继续读取；重新连接可补收；清库/卸载重装后游标恢复，旧聊天跳转失效时不得误开联系人。
 - 在手机可回退备份确认 current/previous 保留，自动清理仅自有旧目录；下载 ZIP、个人记忆、Agent 数据不能变化。
 
-验收照片/通知/日志含私人数据，不提交公共仓库。完成验收并获得发版授权后，才按 MAINTENANCE.md 发正式附件、最后更新 update.json；本轮未新增 CI/CD，也未发布 preview15。
+验收照片/通知/日志含私人数据，不提交公共仓库。完成验收并获得发版授权后，才按 MAINTENANCE.md 发正式附件、最后更新 update.json；本轮未新增CI/CD；已发布的是preview18测试更新，后台常驻和语音仍待实测。
 
 参考：[Android 通知监听服务](https://developer.android.com/reference/android/service/notification/NotificationListenerService)、[ContentProvider](https://developer.android.com/guide/topics/providers/content-provider-creating)、[活动启动限制](https://developer.android.com/guide/components/activities/secure-bal)。
 
