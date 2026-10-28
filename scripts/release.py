@@ -47,6 +47,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--publish', action='store_true')
     parser.add_argument('--confirm-public', action='store_true')
+    parser.add_argument('--offline-adapter', type=Path, help='Optional separately built offline dictation APK; verified before updating the phone pointer')
     args = parser.parse_args()
     if args.publish and not args.confirm_public:
         raise SystemExit('Explicit approval required: --publish --confirm-public')
@@ -66,8 +67,14 @@ def main():
         blockers.append('Bump to a version newer than the phone update channel')
     if existing is not None:
         blockers.append('Release/tag already exists; never overwrite it')
+    extra_assets = []
+    if args.offline_adapter:
+        if not args.offline_adapter.is_file() or args.offline_adapter.name != 'Jarvis-Offline-Input-v0.2-preview.apk':
+            blockers.append('Expected the separately verified offline adapter APK')
+        else:
+            extra_assets = [args.offline_adapter.resolve(), ROOT / 'docs/OFFLINE_INPUT_LICENSE.txt', ROOT / 'docs/OFFLINE_INPUT_NOTICES.md']
     plan = {'repository': REPO, 'version': version, 'current_phone_version': online['version'],
-            'source_commit': head, 'assets': [f'Jarvis-Core-v{version}.zip', 'Jarvis_Launcher-v2.js'],
+            'source_commit': head, 'assets': [f'Jarvis-Core-v{version}.zip', 'Jarvis_Launcher-v2.js'] + [p.name for p in extra_assets],
             'update_pointer_last': True, 'blockers': blockers, 'publishing': args.publish}
     print(json.dumps(plan, ensure_ascii=False, indent=2))
     if not args.publish:
@@ -87,9 +94,12 @@ def main():
     notes.write_text(config.get('notes', 'Preview update; Android validation still required.') + '\n\nSource: ' + head + '\n', encoding='utf-8')
     # Deliberately no --clobber and no force operation.
     run('gh', 'release', 'create', 'v' + version, '--repo', REPO, '--target', head, '--prerelease',
-        '--title', 'Jarvis Core ' + version, '--notes-file', str(notes), str(archive), str(launcher))
+        '--title', 'Jarvis Core ' + version, '--notes-file', str(notes), str(archive), str(launcher), *map(str, extra_assets))
     verify_public(info['url'], info['bytes'], info['sha256'])
     verify_public(f'https://github.com/{REPO}/releases/download/v{version}/{launcher.name}', launcher.stat().st_size, launcher_hash)
+    for asset in extra_assets:
+        verify_public(f'https://github.com/{REPO}/releases/download/v{version}/{asset.name}', asset.stat().st_size,
+                      hashlib.sha256(asset.read_bytes()).hexdigest())
     if run('gh', 'api', f'repos/{REPO}/commits/main', '--jq', '.sha') != head:
         raise SystemExit('GitHub main advanced during upload. Assets exist; pointer unchanged. Reconcile first.')
     payload = {'message': 'Publish phone update pointer for ' + version, 'branch': 'main', 'sha': resource['sha'],

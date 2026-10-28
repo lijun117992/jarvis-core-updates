@@ -1,4 +1,26 @@
-# 手机离线听写试用
+# 手机离线听写 preview20 试用
+
+最新反馈：用户原版 Offline Voice Input 兼容页面可识别中文；直接服务返回错误9。下方 Listening 面板由上游 RecognizeActivity 绘制，不是 Android 隐私指示。
+
+## 本次操作
+
+1. Jarvis启动器检查GitHub更新，安装 preview20 并重启。
+2. 从 [preview20附件](https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview20) 下载 Jarvis-Offline-Input-v0.2-preview.apk，在手机安装“Jarvis 离线听写（测试）”。这是另签名的修改版，不是上游官方应用；可与原版并存，不卸载原版、不修改原应用数据。
+3. 打开新应用，允许麦克风；在 Speech models 导入手机已有的 SenseVoiceSmall-Q8_0.gguf，选中并等 Ready，语言选中文，翻译关闭。模型不用重新下载，但独立应用必须重新导入一份，占用额外存储。
+4. 在新应用首页 Try voice input 先验证中文。此测试仍可显示它的面板，这是单独的应用内测试；Jarvis日常调用的是无界面服务。
+5. Jarvis更多设置只保留“MiMo 接口听写”和“手机离线听写”，选后者。离线模式不显示MiMo模型，模型配置仍保存在原位置。单击小人测试；只应有小人动作，不启动底部兼容面板；最终文字自动交给对话模型。
+6. 如果仍返回9，反馈是否仅在桌面发生，以及新服务组件名 com.jarvis.offlineinput/dev.notune.transcribe.VoiceRecognitionService。分别检查新应用和AutoJs6的麦克风授权。不再反复测试原版系统兼容入口，也不自动回退到付费接口。
+
+## 实现和边界
+
+- 单独适配包来自上游 v0.2.3 无模型APK，原DEX/native字节保持一致，仅改应用身份及增加AutoJs6包可见性；保留Android权限校验，无INTERNET、不复制Key。脚本 scripts/build_offline_adapter.py 固定上游APK及Apktool校验和，构建时附MIT许可与修改说明。签名密钥仅在忽略目录保存，后续更新需保持此签名。
+- 上游Manifest明确指出识别服务检查调用方录音权限时可能受包可见性影响；当前是针对这一因素的候选适配，不是在没有日志时确认错误9唯一根因。Android后台麦克风限制仍可能存在。
+- 新适配包签名/16KB对齐/权限/包名及DEX/native一致性已在主机检查，298项Jarvis回归通过；用户OPPO Android16尚未验证。无界面调用不启动RecognizeActivity；Android顶部麦克风隐私指示仍保留。
+- 本地转写不占用电脑，不发录音到中转站；最终文字仍发送给你配置的对话模型。没有新增付费服务。
+- 原版可保留回退。preview20离线选项只调用新适配包，不再公开原版兼容选项；需要回退时使用启动器回到preview19和原版应用。
+
+## 历史：preview19 原版安装步骤
+
 
 状态：核对上游 v0.2.3 的安装包、Manifest、识别服务和模型列表；Jarvis preview19 修正服务发现筛选。尚未在 OPPO Find X7 / Android 16 验收，不保证后台麦克风可用或识别质量达到微信输入法水平。不需要电脑常驻，不更换微信输入法，不使用中转站进行转写。
 
