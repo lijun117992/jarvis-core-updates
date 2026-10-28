@@ -2790,7 +2790,7 @@ function resolveRecognitionComponent() {
     let candidates = [], seen = [];
     for (let i = 0; matches && i < matches.size(); i++) {
         let info = matches.get(i).serviceInfo;
-        if (!info || !info.exported || !info.enabled || (info.applicationInfo && !info.applicationInfo.enabled) || String(info.permission || "") !== "android.permission.BIND_SPEECH_RECOGNITION_SERVICE") continue;
+        if (!info || !info.exported || !info.enabled || (info.applicationInfo && !info.applicationInfo.enabled) || String(info.permission || "") !== "android.permission.BIND_RECOGNITION_SERVICE") continue;
         let component = new android.content.ComponentName(String(info.packageName), String(info.name));
         let name = String(component.flattenToShortString());
         if (seen.indexOf(name) < 0) { seen.push(name); candidates.push(component); }

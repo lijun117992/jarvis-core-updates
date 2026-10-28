@@ -2,7 +2,13 @@ const assert=require('assert/strict'),fs=require('fs'),path=require('path'),vm=r
 const src=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8'),tree=parser.parse(src,{plugins:['jsx']});
 let count=0;function test(name,f){f();count++;console.log('PASS '+name);}
 function runtime(configured,services){const component=n=>({flattenToShortString:()=>n});const b=vm.createContext({android:{provider:{Settings:{Secure:{getString:()=>configured}}},content:{Intent:function(){},ComponentName:Object.assign(function(pkg,name){return component(pkg+'/'+name)},{unflattenFromString:s=>s.includes('/')?component(s):null})}},context:{getContentResolver:()=>({})},activity:{getPackageManager:()=>({queryIntentServices:()=>({size:()=>services.length,get:i=>({serviceInfo:services[i]})})})}});const f=tree.program.body.find(n=>n.type==='FunctionDeclaration'&&n.id.name==='resolveRecognitionComponent');vm.runInContext(src.slice(f.start,f.end),b);return b;}
-const valid={packageName:'org.example.speech',name:'.Recognizer',exported:true,enabled:true,permission:'android.permission.BIND_SPEECH_RECOGNITION_SERVICE',applicationInfo:{enabled:true}};
+// Android RecognitionService requires BIND_RECOGNITION_SERVICE. The old
+// BIND_SPEECH_RECOGNITION_SERVICE string is not the framework permission.
+const valid={packageName:'org.example.speech',name:'.Recognizer',exported:true,enabled:true,permission:'android.permission.BIND_RECOGNITION_SERVICE',applicationInfo:{enabled:true}};
+
+test('Offline Voice Input v0.2.3 exported service is discoverable without a system default',()=>{const b=runtime('',[{...valid,packageName:'dev.notune.transcribe',name:'dev.notune.transcribe.VoiceRecognitionService'}]);assert.equal(b.resolveRecognitionComponent().flattenToShortString(),'dev.notune.transcribe/dev.notune.transcribe.VoiceRecognitionService');});
+
+test('invalid invented recognition permission is not accepted',()=>{const b=runtime('',[{...valid,permission:'android.permission.BIND_SPEECH_RECOGNITION_SERVICE'}]);assert.throws(()=>b.resolveRecognitionComponent(),/未找到应用可调用/);});
 test('configured recognition component is preserved',()=>{const b=runtime(' org.example/.Selected ',[]);assert.equal(b.resolveRecognitionComponent().flattenToShortString(),'org.example/.Selected');});
 test('empty default uses the sole eligible installed recognition service',()=>{const b=runtime(' ',[valid,{...valid,exported:false},{...valid,enabled:false},{...valid,applicationInfo:{enabled:false}},{...valid,permission:''}]);assert.equal(b.resolveRecognitionComponent().flattenToShortString(),'org.example.speech/.Recognizer');});
 test('missing services produce actionable failure rather than another default error 5',()=>{const b=runtime('',[]);assert.throws(()=>b.resolveRecognitionComponent(),/未找到应用可调用/);});

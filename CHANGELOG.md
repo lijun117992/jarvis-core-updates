@@ -1,3 +1,9 @@
+## 4.0.0-preview19（离线听写接入测试）
+
+- 修正服务发现误用的 BIND_SPEECH_RECOGNITION_SERVICE，按 Android 实际 BIND_RECOGNITION_SERVICE 筛选。原错误会漏掉已安装、导出的标准识别服务；不影响用户已指定的组件，不任意选择多个服务。
+- 核对 Offline Voice Input v0.2.3 Manifest、无界面 RecognitionService 与 SenseVoice Small GGUF 模型入口，新增手机独立安装与分步验收文档。保持现有配置，需用户主动选择系统直接识别，不擅自切换原 ASR 渠道。
+- 新增真实上游组件名/权限契约回归，292项主机检查通过；未操作手机，未宣称已在 OPPO Android 16 通过收音或中文识别。上游应用和模型使用原作者链接，不打包进 Jarvis。
+
 ## 4.0.0-preview15（候选，未发布）
 
 - 新增原生配套应用 Jarvis 通知桥：系统 NotificationListenerService → 私有 SQLite，微信/QQ/钉钉通知最多 5000 条/7 天；无联网、Key、麦克风、全文件权限。进程被强停等系统限制仍不能保证漏收恢复。
