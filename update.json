@@ -2,10 +2,10 @@
   "project": "Jarvis-Core",
   "schema": 1,
   "channel": "preview",
-  "version": "4.0.0-preview19",
+  "version": "4.0.0-preview20",
   "minLauncher": 2,
-  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview19/Jarvis-Core-v4.0.0-preview19.zip",
-  "bytes": 2140918,
-  "sha256": "ce8a7afd341bfababcb92c5227cbcaa68eed8d6594677439953e4537984643e6",
-  "notes": "手机离线听写接入试用：修正 Android 识别服务权限筛选，支持发现 Offline Voice Input 等标准服务。安装上游无模型 APK 和 SenseVoice Small 中文 GGUF 后，在听写方式选系统直接识别。无需电脑常驻，默认配置与 Key/音色/记忆不变。292项主机检查通过不等于OPPO实机验收；上游安装/模型导入及桌面麦克风仍需用户测试。说明见 docs/OFFLINE_DICTATION.md。"
+  "url": "https://github.com/lijun117992/jarvis-core-updates/releases/download/v4.0.0-preview20/Jarvis-Core-v4.0.0-preview20.zip",
+  "bytes": 2141431,
+  "sha256": "42fc905c6a0b3232ec22b38aac992f93c3faf6bc80f37b28273dba190808a0a2",
+  "notes": "听写方式仅保留MiMo接口听写和手机离线听写。离线模式隐藏MiMo模型配置，测试按钮跟随当前模式，不自动打开兼容面板。原版离线应用兼容页面可用、直接调用错误9：本次另附独立签名的Jarvis离线听写测试APK，补充AutoJs6调用可见性，需手动安装、授权麦克风并重新导入已有SenseVoice GGUF（不用重下模型），原版保留作回退。签名/16KB对齐/原引擎代码一致性和298项桌面回归通过；OPPO错误9是否解除仍待用户实测。安卓麦克风隐私指示保留。"
 }
