@@ -15,13 +15,11 @@ AutoJs6 安卓悬浮助手。这个公开仓库维护可编辑源码与手机更
 
 ## Status
 
-[preview20 测试更新](https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview20)已发布，ZIP/启动器/离线适配APK/许可说明均匿名下载校验，main/update.json已切换；298项主机检查通过：听写仅保留 MiMo 与手机离线两项；离线模式隐藏 MiMo 模型配置，测试跟随选中方式，不再启动底部兼容面板。页脚版本同步为 preview20。
+preview21候选改用透明前台Activity录音入口，停止使用实测报9的RecognitionService链。另附离线APK v0.4，和已安装v0.2同包名/同签名、版本递增，覆盖安装保留模型。步骤与边界见[离线听写](docs/OFFLINE_DICTATION.md)。不是后台录音服务，切换应用可能取消；系统隐私指示与麦克风权限检查保留。
 
-[离线听写步骤](docs/OFFLINE_DICTATION.md)：本次另附“Jarvis 离线听写（测试）”独立 APK，保留上游识别代码，补充 AutoJs6 调用可见性。需手动安装、允许麦克风、重新导入已有 SenseVoice GGUF；原版可保留回退。APK签名/16KB对齐/原DEX与本地库字节一致性已核查，包含上游MIT许可及修改说明。无模型、联网权限、Key或个人数据；不需电脑常驻。
+303项主机回归通过，APK升级身份/对齐/DEX受限修改和原生库一致性通过。未操作手机；错误9根因仍未由日志锁定，OPPO透明入口收音、闪屏和生命周期未实测。发布状态看main/update.json及Release附件。
 
-用户已确认原版兼容页面中文可用，直接识别报9。适配包是否解除 OPPO Android16 的权限失败仍待用户测试；无界面服务不创建兼容面板，系统麦克风隐私指示保留。发布状态以 main/update.json 和 Release 附件为准。后续仅经GitHub交付，不直接操作手机。
-
-preview18 的系统语音文件播放、历史浮层与当前问题隔离继续保留；声音首尾、网关间歇422和后台通知尚不保证已解决。Key、音色、记忆不迁移。
+听写仅保留MiMo与手机离线两项，离线隐藏MiMo模型，测试跟随方式。原Key、音色、记忆不迁移；不需电脑运行，识别文字仍由配置的大脑接口处理。原通知桥APK不变。
 
 开发环境：Python 3.10+、Git、GitHub CLI、Node 22.18+ 或 24.11+。
 

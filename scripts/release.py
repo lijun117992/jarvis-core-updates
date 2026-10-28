@@ -69,7 +69,7 @@ def main():
         blockers.append('Release/tag already exists; never overwrite it')
     extra_assets = []
     if args.offline_adapter:
-        if not args.offline_adapter.is_file() or args.offline_adapter.name != 'Jarvis-Offline-Input-v0.2-preview.apk':
+        if not args.offline_adapter.is_file() or args.offline_adapter.name != 'Jarvis-Offline-Input-v0.4-preview.apk':
             blockers.append('Expected the separately verified offline adapter APK')
         else:
             extra_assets = [args.offline_adapter.resolve(), ROOT / 'docs/OFFLINE_INPUT_LICENSE.txt', ROOT / 'docs/OFFLINE_INPUT_NOTICES.md']

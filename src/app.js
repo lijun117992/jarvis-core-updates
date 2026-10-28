@@ -160,7 +160,7 @@ ui.layout(
                 <text id="stopProjection"/>
                 <vertical id="asrOptions"><spinner id="asrWire" entries="标准 Base64|MiMo Data URL"/></vertical>
             </vertical>
-            <text text="BLUE FOX · preview20" textColor="#7B93AC" textSize="10sp" gravity="center" marginTop="24"/>
+            <text text="BLUE FOX · preview21" textColor="#7B93AC" textSize="10sp" gravity="center" marginTop="24"/>
         </vertical>
     </scroll>
 );
@@ -316,6 +316,7 @@ function handleOrbSingleTap(wasListening) {
     if (listening || relaySession) {
         if (relaySession && relaySession.phase === "recording") { relaySession.finish = true; status("正在结束录音…"); }
         else if (relaySession) status("正在转写，未启动新的录音。");
+        else if (compatRecognition && compatRecognition.quiet) sendOfflineControl("stop");
         else { stopListening(); closePanel(); }
         return;
     }
@@ -1661,12 +1662,17 @@ function startRelayListening(testOnly) {
 
 function stopListening() {
     cancelRelayRecording();
+    let pending = compatRecognition;
     compatRecognition = null; recognitionId++; listening = false; if (speechTimer) { clearTimeout(speechTimer); speechTimer = null; }
+    if (pending && pending.quiet) {
+        sendOfflineControl("cancel", pending);
+        try { activity.finishActivity(pending.requestCode); } catch (e) {}
+    }
     if (recognizer) { try { recognizer.cancel(); recognizer.destroy(); } catch (e) {} recognizer = null; }
     if (state === "LISTENING") state = "IDLE";
 }
 function startListening(testOnly, forceDirect) {
-    if (recognitionMode === "offline") forceDirect = true;
+    if (recognitionMode === "offline") { startQuietOfflineSpeech(testOnly === true); return; }
     if (!forceDirect && (recognitionMode === "relay" || (recognitionMode === "auto" && C.asrModel))) { startRelayListening(testOnly === true); return; }
     if (listening) { stopListening(); scheduleDock(); return; }
     if (busy) { status("请等待上一条回复。"); return; }
@@ -2772,11 +2778,6 @@ function onDeviceRecognitionAvailable() {
     catch (e) { return false; }
 }
 function createRecognizer(forceDirect) {
-    if (recognitionMode === "offline") {
-        let component = offlineRecognitionComponent();
-        recognizerSource = String(component.flattenToShortString()); status("听写来源：手机离线听写");
-        return android.speech.SpeechRecognizer.createSpeechRecognizer(activity, component);
-    }
     if (!forceDirect && recognitionMode === "auto" && onDeviceRecognitionAvailable()) {
         recognizerSource = "设备端识别"; status("听写来源：" + recognizerSource); return android.speech.SpeechRecognizer.createOnDeviceSpeechRecognizer(activity);
     }
@@ -2787,14 +2788,6 @@ function createRecognizer(forceDirect) {
     }
     recognizerSource = "";
     status("听写来源：系统默认识别"); return android.speech.SpeechRecognizer.createSpeechRecognizer(activity);
-}
-function offlineRecognitionComponent() {
-    let component = new android.content.ComponentName("com.jarvis.offlineinput", "dev.notune.transcribe.VoiceRecognitionService");
-    try {
-        let info = activity.getPackageManager().getServiceInfo(component, 0);
-        if (!info || !info.exported || !info.enabled || (info.applicationInfo && !info.applicationInfo.enabled) || String(info.permission || "") !== "android.permission.BIND_RECOGNITION_SERVICE") throw Error("服务未启用");
-        return component;
-    } catch (e) { throw Error("请先安装本次 GitHub 更新附件“Jarvis 离线听写（测试）”，打开并允许麦克风、导入 SenseVoice 中文模型。原版 Offline Voice Input 的兼容页面不会自动打开。若已安装，可能受应用可见性限制。详情见离线听写说明。"); }
 }
 function migratedRecognitionMode(value, hasRelayModel) {
     if (value === "offline" || value === "direct" || value === "activity") return "offline";
@@ -2841,17 +2834,49 @@ function startCompatibilitySpeech(testOnly) {
     } catch (e) { stopListening(); showAnswer("系统语音页面不可用", "手机未提供可调用的语音输入页面，或系统拒绝启动。\n" + safeError(e) + "\n可继续文字输入，本轮没有接入付费云端识别。", false); }
 }
 function handleCompatibilityResult(requestCode, resultCode, data) {
-    if (Number(requestCode) !== COMPAT_SPEECH_REQUEST || !compatRecognition) return;
+    if (!compatRecognition || Number(requestCode) !== (compatRecognition.requestCode || COMPAT_SPEECH_REQUEST)) return;
+    let pending = compatRecognition;
     main(function() {
-        if (!compatRecognition) return;
-        let testOnly = compatRecognition.testOnly; stopListening();
-        if (Number(resultCode) !== android.app.Activity.RESULT_OK || !data) { status("系统语音输入已取消或未返回内容。"); return; }
+        if (compatRecognition !== pending) return;
+        if (pending.quiet && data && String(data.getStringExtra("jarvis_session") || "") !== pending.token) return;
+        let quietError = pending.quiet && data ? String(data.getStringExtra("jarvis_error") || "") : "";
+        compatRecognition = null;
+        let testOnly = pending.testOnly; stopListening();
+        if (quietError) { showAnswer("离线听写未完成", quietError, false); return; }
+        if (Number(resultCode) !== android.app.Activity.RESULT_OK || !data) { status(pending.quiet ? "离线听写已取消或没有检测到说话。" : "系统语音输入已取消或未返回内容。"); return; }
         let results = data.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS);
         let text = results && results.size() ? String(results.get(0)).trim() : "";
         if (!text) { status("系统语音页面未返回识别文字。"); return; }
-        if (testOnly) showAnswer("兼容识别测试成功", text + "\n测试结果未发送给模型。", false);
+        if (testOnly) showAnswer(pending.quiet ? "离线听写测试成功" : "兼容识别测试成功", text + "\n测试结果未发送给模型。", false);
         else processUserCommand(text);
     });
+}
+function sendOfflineControl(command, pending) {
+    pending = pending || compatRecognition;
+    if (!pending || !pending.quiet) return;
+    try {
+        let intent = new android.content.Intent("com.jarvis.offlineinput.CONTROL");
+        intent.setPackage("com.jarvis.offlineinput"); intent.putExtra("session", pending.token); intent.putExtra("command", command);
+        context.sendBroadcast(intent);
+    } catch (e) { status("离线听写控制未送达，等待本轮自动结束。"); }
+}
+function startQuietOfflineSpeech(testOnly) {
+    if (compatRecognition && compatRecognition.quiet) { sendOfflineControl("stop"); return; }
+    if (busy) { status("请等待上一条请求完成。"); return; }
+    closeEditor(); closePanel(); stopAudio(); stopListening();
+    try {
+        let intent = new android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.setComponent(new android.content.ComponentName("com.jarvis.offlineinput", "dev.notune.transcribe.QuietRecognizeActivity"));
+        let token = String(java.util.UUID.randomUUID());
+        intent.putExtra("jarvis_session", token);
+        intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "zh-CN");
+        let requestCode = 8000 + (recognitionId % 20000);
+        compatRecognition = { quiet: true, token: token, requestCode: requestCode, testOnly: !!testOnly };
+        listening = true; state = "LISTENING";
+        activity.startActivityForResult(intent, requestCode);
+        speechTimer = setTimeout(function() { main(function() { if (compatRecognition && compatRecognition.token === token) { stopListening(); status("离线听写已超时取消。"); } }); }, 125000);
+    } catch (e) { stopListening(); showAnswer("离线听写尚未启动", "请覆盖安装本次更新的 Jarvis 离线听写 v0.4，不要卸载，以保留中文模型；确认已允许麦克风。\n" + safeError(e), false); }
 }
 function bindRecognitionControls() {
     if (!store.get("asrReadyV412", false)) { store.put("speechInputModeV46", "relay"); store.put("asrReadyV412", true); }
