@@ -6,9 +6,9 @@
 
 ## 当前状态
 
-preview21候选：用户实测preview20 v0.2仍报9。改用新增透明前台Activity（非后台服务），复用原兼容入口JNI录音；APK v0.4与v0.2同签名同包名，versionCode25覆盖保留模型。新增源码offline-adapter/src；构建脚本精确清除原R8六个回调final位，正文/权限检查不改、本地库不改，新增类单独DEX。303项主机检查通过，APK签名/对齐/DEX限定改动通过，无设备日志与实机验收。步骤见OFFLINE_DICTATION.md，发布状态查线上指针。不能再把可见性修复或错误9已解决作为确定事实。
+preview21已发布，源码7a2611a，ZIP/启动器/离线APK/许可附件匿名校验，main/update.json已切换。用户实测preview20 v0.2仍报9。改用新增透明前台Activity（非后台服务），复用原兼容入口JNI录音；APK v0.4与v0.2同签名同包名，versionCode25覆盖保留模型。新增源码offline-adapter/src；构建脚本精确清除原R8六个回调final位，正文/权限检查不改、本地库不改，新增类单独DEX。303项主机检查通过，APK签名/对齐/DEX限定改动通过，无设备日志与实机验收。步骤见OFFLINE_DICTATION.md，发布状态查线上指针。不能再把可见性修复或错误9已解决作为确定事实。
 
-preview20已发布并匿名校验ZIP/启动器/离线适配APK/许可附件，main/update.json已切换。源码8a69830。新增MiMo/手机离线两项，选择离线时隐藏MiMo配置，测试跟随模式，页脚改preview20。用户已确认原版兼容页面中文可用，但直接服务错误9；本次独立适配APK加AutoJs6调用方可见性，原引擎代码未改。APK签名/16KB对齐/DEX-native一致性通过，298项回归通过，手机未测试。操作、回退与边界见OFFLINE_DICTATION.md；发布状态以线上指针为准。禁止将候选可见性因素称为已确认的唯一根因。
+历史：preview20曾发布并匿名校验，现已被preview21替代。源码8a69830。新增MiMo/手机离线两项，选择离线时隐藏MiMo配置，测试跟随模式，页脚改preview20。用户已确认原版兼容页面中文可用，但直接服务错误9；本次独立适配APK加AutoJs6调用方可见性，原引擎代码未改。APK签名/16KB对齐/DEX-native一致性通过，298项回归通过，手机未测试。操作、回退与边界见OFFLINE_DICTATION.md；发布状态以线上指针为准。禁止将候选可见性因素称为已确认的唯一根因。
 
 历史：preview19 曾发布且 ZIP/启动器匿名校验，目前 main/update.json 已由 preview20 替代，源码提交 5eb396b；离线听写接入测试：用户选择手机独立运行的 Offline Voice Input。核对 v0.2.3 提供无界面 RecognitionService、9.7 MB无模型APK、SenseVoice Small GGUF中文模型；修正 Jarvis 服务过滤权限拼写。安装/中文识别/桌面收音未实测，不需要或使用电脑常驻。步骤见 OFFLINE_DICTATION.md。292项主机检查通过。此次不改变听写默认项，用户需选择系统直接识别；不拷贝Key、不变动原生通知桥、不操作手机。发布状态查看线上指针。
 

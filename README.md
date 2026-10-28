@@ -15,7 +15,7 @@ AutoJs6 安卓悬浮助手。这个公开仓库维护可编辑源码与手机更
 
 ## Status
 
-preview21候选改用透明前台Activity录音入口，停止使用实测报9的RecognitionService链。另附离线APK v0.4，和已安装v0.2同包名/同签名、版本递增，覆盖安装保留模型。步骤与边界见[离线听写](docs/OFFLINE_DICTATION.md)。不是后台录音服务，切换应用可能取消；系统隐私指示与麦克风权限检查保留。
+[preview21测试更新](https://github.com/lijun117992/jarvis-core-updates/releases/tag/v4.0.0-preview21)已发布，ZIP/启动器/离线APK/许可附件匿名校验，main/update.json已切换。此次改用透明前台Activity录音入口，停止使用实测报9的RecognitionService链。另附离线APK v0.4，和已安装v0.2同包名/同签名、版本递增，覆盖安装保留模型。步骤与边界见[离线听写](docs/OFFLINE_DICTATION.md)。不是后台录音服务，切换应用可能取消；系统隐私指示与麦克风权限检查保留。
 
 303项主机回归通过，APK升级身份/对齐/DEX受限修改和原生库一致性通过。未操作手机；错误9根因仍未由日志锁定，OPPO透明入口收音、闪屏和生命周期未实测。发布状态看main/update.json及Release附件。
 
