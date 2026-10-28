@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-原生 APK 0.1.0-preview 与 Core 4.0.0-preview16 均为候选，PR #1 尚未合并，手机更新通道保持 preview14。251 项 Node 回归、3 项原生主机检查、APK 编译/签名/权限核查通过。未连接安卓手机，不宣称系统授权、后台常驻或长语音已通过。
+原生 APK 0.1.0-preview 与 Core 4.0.0-preview17 均为候选，PR #1 尚未合并，手机更新通道保持 preview14。272 项 Node 回归、3 项原生主机检查、APK 编译/签名/权限核查通过。未连接安卓手机，不宣称系统授权、后台常驻或长语音已通过。
 
 ## 安装与连接
 
 1. 将 APK 和候选 ZIP 保存到手机 Download/WeiXin。首次安装 Jarvis 通知桥，按安卓提示确认安装来源；新 APK 安装不取代 AutoJs6。
 2. 打开 Jarvis 通知桥，点“设置通知使用权”，只给该应用开启通知使用权。返回检查“系统监听连接”。在 OPPO 中按实际系统入口允许此应用后台运行/自启动，关闭针对它的电池限制。
-3. 原启动器点“安装下载目录的最新包”，选择/识别 preview16 候选，再启动。Key、候选音色和记忆沿用。候选启动会清理 Jarvis/App 自有旧版本/缓存，保留当前/上一版、其他运行和较新版本；不删 Download/WeiXin、Memory、AgentData。
+3. 原启动器点“安装下载目录的最新包”，选择/识别 preview17 候选，再启动。Key、候选音色和记忆沿用。候选启动会清理 Jarvis/App 自有旧版本/缓存，保留当前/上一版、其他运行和较新版本；不删 Download/WeiXin、Memory、AgentData。
 4. Jarvis → “一键设置权限”。在原生页面核对调用应用包名后点“授权连接 Jarvis”。该授权只允许读取原生记录，不是自动授予系统通知使用权。
 5. 回 Jarvis 检查原生状态。原生应用内可撤销Jarvis读取授权或清除本机记录。
 
@@ -53,3 +53,5 @@ python scripts/package.py
 验收照片/通知/日志含私人数据，不提交公共仓库。完成验收并获得发版授权后，才按 MAINTENANCE.md 发正式附件、最后更新 update.json；本轮未新增 CI/CD，也未发布 preview15。
 
 参考：[Android 通知监听服务](https://developer.android.com/reference/android/service/notification/NotificationListenerService)、[ContentProvider](https://developer.android.com/guide/topics/providers/content-provider-creating)、[活动启动限制](https://developer.android.com/guide/components/activities/secure-bal)。
+
+preview17的通知分级、秘书式摘要和提醒由Jarvis脚本处理，原生APK未改。桥在脚本停止时只采集留存，不进行AI分析或定时提醒；重开后补收。未标记处理不等于应用内确实未回复。高频重要通知的待汇报标记持久保存，普通群聊可静默保存，模型分类仍需真实通知验收。

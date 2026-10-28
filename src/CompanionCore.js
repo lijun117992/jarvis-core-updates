@@ -55,6 +55,35 @@
         if (s) out.push(s);
         return out;
     }
+    function speechText(text) {
+        return String(text || "").replace(/```[\s\S]*?(?:```|$)/g, " 这里有一段代码，已保留在文字里。 ").replace(/`[^`\n]+`/g, "一段代码")
+            .replace(/(?:https?:\/\/|www\.)[^\s<>\u3000\u3002\uff0c\uff01\uff1f]+/gi, "一条网址")
+            .replace(/\bdata:[^\s]+/gi, "一段数据")
+            .replace(/^\s*(?:(?:const|let|var|function|class|import|export|def|return|SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b|(?:curl|npm|pip|git)\s|[{}\[\]]\s*[,;]?\s*$).*$/gm, "这里有代码，已保留在文字里。")
+            .replace(/\b[A-Za-z0-9_+\/=.-]{48,}\b/g, "一段编号或编码")
+            .replace(/(?:这里有代码，已保留在文字里。\s*){2,}/g, "这里有一段代码，已保留在文字里。")
+            .replace(/\s{2,}/g, " ").trim();
+    }
+    function resolveModelRole(channels, routes, role, activeId) {
+        var route = routes && routes[role], list = Array.isArray(channels) ? channels : [], channel;
+        if (route) {
+            channel = list.filter(function(x) { return x.id === route.channelId; })[0];
+            if (!channel || !route.model) throw Error("所选" + role + "渠道或模型已失效，请重新选择");
+        } else if (role === "vision") {
+            return resolveModelRole(list, routes, "chat", activeId);
+        } else {
+            channel = list.filter(function(x) { return x.id === activeId; })[0];
+            if (!channel) throw Error("请先保存API渠道");
+            route = { model: role === "asr" ? channel.asrModel : channel.model };
+        }
+        if (!channel.key || !route.model) throw Error("请先选择" + role + "模型并填写渠道Key");
+        return { channelId: channel.id, channelName: channel.name, url: channel.url, key: channel.key, model: route.model, asrModel: route.model, asrWire: channel.asrWire || "base64" };
+    }
+    function noticePolicy(parsed) {
+        var priority = ["high", "normal", "low"].indexOf(parsed.priority) >= 0 ? parsed.priority : "low";
+        var important = !parsed.is_spam && priority === "high";
+        return { report: !parsed.is_spam && (important || parsed.direct_message === true || (parsed.mentioned === true && priority !== "low")), important: important, needsReply: parsed.needs_reply === true, summary: speechText(parsed.alert_speech || "") .slice(0, 600), priority: priority };
+    }
     function prefix(text, count) { return (Array.from ? Array.from(String(text)) : String(text).split("")).slice(0, count).join(""); }
     function destination(f, size) {
         var maxW = 1, maxH = 1;
@@ -522,5 +551,5 @@
         return { channels: channels, invalid: invalid + Math.max(0, entries.length - 100) };
     }
 
-    return { parseModelJson: parseModelJson, replyBody: replyBody, planChannelImport: planChannelImport, relationshipMarkdown: relationshipMarkdown, wavHeader: wavHeader, relayAsrPayload: relayAsrPayload, makeVoiceActivity: makeVoiceActivity, plainReply: plainReply, localDayKey: localDayKey, dayContext: dayContext, personaWithPreferences: personaWithPreferences, mergeDailyContacts: mergeDailyContacts, makeFileAgent: makeFileAgent, mergeCollaborationMemory: mergeCollaborationMemory, states: names, fps: fps, frame: frame, mirror: mirror, chooseState: chooseState, bubble: bubble, splitSentences: splitSentences, speechBlocks: speechBlocks, progressCount: progressCount, prefix: prefix, fishText: fishText, destination: destination, speed: speed, upsertFishVoice: upsertFishVoice, cloneFishVoices: cloneFishVoices, planFishImport: planFishImport, removeFishVoices: removeFishVoices, renameFishVoices: renameFishVoices };
+    return { speechText: speechText, resolveModelRole: resolveModelRole, noticePolicy: noticePolicy, parseModelJson: parseModelJson, replyBody: replyBody, planChannelImport: planChannelImport, relationshipMarkdown: relationshipMarkdown, wavHeader: wavHeader, relayAsrPayload: relayAsrPayload, makeVoiceActivity: makeVoiceActivity, plainReply: plainReply, localDayKey: localDayKey, dayContext: dayContext, personaWithPreferences: personaWithPreferences, mergeDailyContacts: mergeDailyContacts, makeFileAgent: makeFileAgent, mergeCollaborationMemory: mergeCollaborationMemory, states: names, fps: fps, frame: frame, mirror: mirror, chooseState: chooseState, bubble: bubble, splitSentences: splitSentences, speechBlocks: speechBlocks, progressCount: progressCount, prefix: prefix, fishText: fishText, destination: destination, speed: speed, upsertFishVoice: upsertFishVoice, cloneFishVoices: cloneFishVoices, planFishImport: planFishImport, removeFishVoices: removeFishVoices, renameFishVoices: renameFishVoices };
 });

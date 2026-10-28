@@ -12,7 +12,7 @@ test('initial panel hides voice details and diagnostics; removed notification an
  for(const name of ['notifications','voiceMode','systemVoice','overlayPerm','micPerm','accessPerm','noticePerm','refreshTts'])assert(!ids.has(name),name);
 });
 test('all main-panel event bindings resolve to existing views',()=>{
- walk(tree,n=>{if(n.type==='CallExpression'&&n.callee.type==='MemberExpression'&&n.callee.property.name==='on'&&n.callee.object.type==='MemberExpression'&&n.callee.object.object.name==='ui')assert(ids.has(n.callee.object.property.name),n.callee.object.property.name);});
+ walk(tree,n=>{if(n.type==='CallExpression'&&n.callee.type==='MemberExpression'&&n.callee.property.name==='on'&&n.callee.object.type==='MemberExpression'&&n.callee.object.object.name==='ui'&&!n.callee.object.computed)assert(ids.has(n.callee.object.property.name),n.callee.object.property.name);});
 });
 test('new and management are separate and import has no extra action controls',()=>{
  for(const id of ['addFishVoice','manageFishVoices','openBatchImport','fishBatchPane'])assert(ids.has(id),id);
@@ -30,7 +30,7 @@ test('two provider choices are exclusive, preserve settings on reveal and reject
 });
 test('saving collapsed settings keeps provider, follows system voice and enables notifications',()=>{
  const data={},ui={asrWire:{getSelectedItemPosition:()=>0},asrModel:{text:()=>"mimo-v2.5-asr"},dailyMemory:{isChecked:()=>true},visionModel:{text:()=>''},agentEnabled:{isChecked:()=>true},connectionSummary:{setText:()=>{}},url:{text:()=> 'https://example.com'},key:{text:()=> 'test-key'},model:{text:()=> 'model'},fishKey:{text:()=> ''},voice:{text:()=> ''},autoSpeak:{isChecked:()=>true},speechRate:{getProgress:()=>64},systemPitch:{getProgress:()=>34},rateLabel:{setText:()=>{}},pitchLabel:{setText:()=>{}}};
- const b=load(['saveConfig','syncVoiceSettings','normalizeApiUrl'],{rememberModelChoice:()=>{},C:{provider:'fish',voice:'saved-id',systemVoice:'old-app-override'},ui,Companion:require('../src/CompanionCore.js'),clamp:(n,a,z)=>Math.max(a,Math.min(z,n)),store:{put:(k,v)=>data[k]=v}});b.saveConfig();
+ const b=load(['saveConfig','syncVoiceSettings','normalizeApiUrl'],{rememberModelChoice:()=>{},renderModelRoutes:()=>{},C:{provider:'fish',voice:'saved-id',systemVoice:'old-app-override'},ui,Companion:require('../src/CompanionCore.js'),clamp:(n,a,z)=>Math.max(a,Math.min(z,n)),store:{put:(k,v)=>data[k]=v}});b.saveConfig();
  assert.equal(data.voiceProviderV4,'fish');assert.equal(data.systemVoiceChoiceV43,'');assert.equal(data.notificationsV3,true);assert.equal(data.voiceId,'saved-id');assert.equal(data.speechRateV4,1.14);assert.equal(data.autoSpeakV3,true);
 });
 test('permission entry pairs native bridge and skips saved grants',()=>{

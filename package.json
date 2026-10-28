@@ -1,6 +1,6 @@
 {
   "name": "jarvis-core-maintenance",
-  "version": "4.0.0-preview16",
+  "version": "4.0.0-preview17",
   "private": true,
   "description": "Offline syntax and behavior checks for the AutoJs6 Jarvis client",
   "scripts": {
